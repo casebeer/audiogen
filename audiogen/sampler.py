@@ -7,6 +7,10 @@ import itertools
 
 import pyaudio
 import time
+import sys
+import errno
+
+from StringIO import StringIO
 
 from .util import hard_clip
 from .util import normalize
@@ -32,6 +36,23 @@ class frame_rate(object):
 	def __exit__(self, *args, **kwargs):
 		global FRAME_RATE
 		FRAME_RATE = self._saved_frame_rate
+
+def file_is_seekable(f):
+	'''
+	Returns True if file `f` is seekable, and False if not
+	
+	Useful to determine, for example, if `f` is STDOUT to 
+	a pipe.
+	'''
+	try:
+		f.tell()
+		logging.info("File is seekable!")
+	except IOError, e:
+		if e.errno == errno.ESPIPE:
+			return False
+		else:
+			raise
+	return True
 
 
 def sample(generator, min=-1, max=1, width=SAMPLE_WIDTH):
@@ -83,9 +104,44 @@ def wav_samples(channels, sample_width=SAMPLE_WIDTH, raw_samples=False):
 		channels = sample_all(channels, width=sample_width)
 	return interleave(channels)
 
-def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False):
+class NonSeekableFileProxy(object):
+	def __init__(self, file_instance):
+		'''Proxy to protect seek and tell methods of non-seekable file objects'''
+		self.f = file_instance
+	def __getattr__(self, attr):
+		def dummy(*args):
+			logging.debug("Suppressed call to '{0}'".format(attr))
+			return 0
+		if attr in ('seek', 'tell'):
+			return dummy
+		else:
+			return getattr(self.f, attr)
+
+def wave_module_patched():
+	'''True if wave module can write data size of 0xFFFFFFFF, False otherwise.'''
+	f = StringIO()
+	w = wave.open(f, "wb")
+	w.setparams((1, 2, 44100, 0, "NONE", "no compression"))
+	patched = True
+	try:
+		w.setnframes((0xFFFFFFFF - 36) / w.getnchannels() / w.getsampwidth())
+		w._ensure_header_written(0)
+	except struct.error:
+		patched = False
+		logging.info("Error setting wave data size to 0xFFFFFFFF; wave module unpatched, setting sata size to 0x7FFFFFFF")
+		w.setnframes((0x7FFFFFFF - 36) / w.getnchannels() / w.getsampwidth())
+		w._ensure_header_written(0)
+	return patched
+
+def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False, seekable=None):
 	stream = wav_samples(channels, sample_width, raw_samples)
 	channel_count = 1 if hasattr(channels, "next") else len(channels)
+
+	output_seekable = file_is_seekable(f) if seekable is None else seekable
+
+	if not output_seekable:
+		# protect the non-seekable file, since Wave_write will call tell
+		f = NonSeekableFileProxy(f)
 
 	w = wave.open(f)
 	w.setparams((
@@ -96,10 +152,24 @@ def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False):
 		COMPRESSION_TYPE, 
 		COMPRESSION_NAME
 		))
+
+	if not output_seekable:
+		if wave_module_patched():
+			# set nframes to make wave module write data size of 0xFFFFFFF
+			w.setnframes((0xFFFFFFFF - 36) / w.getnchannels() / w.getsampwidth())
+			logging.debug("Setting frames to: {0}, {1}".format((w.getnframes()), w._nframes))
+		else:
+			w.setnframes((0x7FFFFFFF - 36) / w.getnchannels() / w.getsampwidth())
+			logging.debug("Setting frames to: {0}, {1}".format((w.getnframes()), w._nframes))
 	
 	for chunk in buffer(stream):
 		logging.debug("Writing %d bytes..." % len(chunk))
-		w.writeframes(chunk)
+		if output_seekable:
+			w.writeframes(chunk)
+		else:
+			# tell wave module not to update nframes header field 
+			# if output stream not seekable, e.g. STDOUT to a pipe
+			w.writeframesraw(chunk)
 	w.close()
 
 def cache_finite_samples(f):
