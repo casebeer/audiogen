@@ -9,6 +9,7 @@ import pyaudio
 import time
 import sys
 import errno
+import contextlib
 
 from StringIO import StringIO
 
@@ -36,6 +37,14 @@ class frame_rate(object):
 	def __exit__(self, *args, **kwargs):
 		global FRAME_RATE
 		FRAME_RATE = self._saved_frame_rate
+
+@contextlib.contextmanager
+def sample_width(new_sample_width):
+	global SAMPLE_WIDTH
+	saved_sample_width = SAMPLE_WIDTH
+	SAMPLE_WIDTH = new_sample_width
+	yield
+	SAMPLE_WIDTH = saved_sample_width
 
 def file_is_seekable(f):
 	'''
