@@ -2,9 +2,10 @@
 
 from setuptools import setup, find_packages
 
-required_modules = [
-	'pyaudio',
-	]
+required_modules = []
+extras_require = {
+	'soundcard_playback': ['pyaudio'],
+}
 
 with open("README.rst", "rb") as f:
 	readme = f.read()
@@ -19,6 +20,7 @@ setup(
 
 	packages=find_packages(exclude='tests'),
 	install_requires=required_modules,
+	extras_require=extras_require,
 
 	tests_require=["nose"],
 	test_suite="nose.collector",

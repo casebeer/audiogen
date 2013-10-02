@@ -6,7 +6,11 @@ import struct
 import wave
 import itertools
 
-import pyaudio
+try:
+	import pyaudio
+	pyaudio_loaded = True
+except ImportError:
+	pyaudio_loaded = False
 import time
 import sys
 import errno
@@ -192,7 +196,7 @@ def cache_finite_samples(f):
 		return (sample for sample in cache[key])
 	return wrap
 
-def pyaudio_callback(wavgen):
+def _pyaudio_callback(wavgen):
 	def cb(a, frame_count, b, c):
 		data = bytearray()
 		try:
@@ -205,6 +209,14 @@ def pyaudio_callback(wavgen):
 	return cb
 
 def play(gen, blocking=False):
+	'''
+	Play the contents of the generator using PyAudio
+
+	Play to the system soundcard using PyAudio. PyAudio, an otherwise optional
+	depenency, must be installed for this feature to work. 
+	'''
+	if not pyaudio_loaded:
+		raise Exception("Soundcard playback requires PyAudio. Install with `pip install pyaudio`.")
 	wavgen = wav_samples(gen)
 	p = pyaudio.PyAudio()
 	stream = p.open(
@@ -212,7 +224,7 @@ def play(gen, blocking=False):
 		channels=1,
 		rate=FRAME_RATE,
 		output=True,
-		stream_callback=pyaudio_callback(wavgen) if not blocking else None
+		stream_callback=_pyaudio_callback(wavgen) if not blocking else None
 	)
 	if blocking:
 		try:
