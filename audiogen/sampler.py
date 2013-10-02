@@ -1,5 +1,6 @@
 
 import logging
+logger = logging.getLogger(__name__)
 
 import struct
 import wave
@@ -55,7 +56,7 @@ def file_is_seekable(f):
 	'''
 	try:
 		f.tell()
-		logging.info("File is seekable!")
+		logger.info("File is seekable!")
 	except IOError, e:
 		if e.errno == errno.ESPIPE:
 			return False
@@ -119,7 +120,7 @@ class NonSeekableFileProxy(object):
 		self.f = file_instance
 	def __getattr__(self, attr):
 		def dummy(*args):
-			logging.debug("Suppressed call to '{0}'".format(attr))
+			logger.debug("Suppressed call to '{0}'".format(attr))
 			return 0
 		if attr in ('seek', 'tell'):
 			return dummy
@@ -137,7 +138,7 @@ def wave_module_patched():
 		w._ensure_header_written(0)
 	except struct.error:
 		patched = False
-		logging.info("Error setting wave data size to 0xFFFFFFFF; wave module unpatched, setting sata size to 0x7FFFFFFF")
+		logger.info("Error setting wave data size to 0xFFFFFFFF; wave module unpatched, setting sata size to 0x7FFFFFFF")
 		w.setnframes((0x7FFFFFFF - 36) / w.getnchannels() / w.getsampwidth())
 		w._ensure_header_written(0)
 	return patched
@@ -166,13 +167,13 @@ def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False, seekabl
 		if wave_module_patched():
 			# set nframes to make wave module write data size of 0xFFFFFFF
 			w.setnframes((0xFFFFFFFF - 36) / w.getnchannels() / w.getsampwidth())
-			logging.debug("Setting frames to: {0}, {1}".format((w.getnframes()), w._nframes))
+			logger.debug("Setting frames to: {0}, {1}".format((w.getnframes()), w._nframes))
 		else:
 			w.setnframes((0x7FFFFFFF - 36) / w.getnchannels() / w.getsampwidth())
-			logging.debug("Setting frames to: {0}, {1}".format((w.getnframes()), w._nframes))
+			logger.debug("Setting frames to: {0}, {1}".format((w.getnframes()), w._nframes))
 	
 	for chunk in buffer(stream):
-		logging.debug("Writing %d bytes..." % len(chunk))
+		logger.debug("Writing %d bytes..." % len(chunk))
 		if output_seekable:
 			w.writeframes(chunk)
 		else:

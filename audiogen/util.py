@@ -1,6 +1,6 @@
 
 import logging 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 import itertools
 import struct
@@ -132,10 +132,10 @@ def hard_clip(generator, min=-1, max=1):
 	while True:
 		sample = generator.next()
 		if sample > max:
-			logging.warn("Warning, clipped value %f > max %f" % (sample, max))
+			logger.warn("Warning, clipped value %f > max %f" % (sample, max))
 			yield max
 		elif sample < min:
-			logging.warn("Warning, clipped value %f < min %f" % (sample, min))
+			logger.warn("Warning, clipped value %f < min %f" % (sample, min))
 			yield min
 		else:
 			yield sample
