@@ -64,5 +64,17 @@ Then pipe to a command line audio player like Sox_::
 
     python myaudio.py | play -t wav -
 
+Installation
+------------
+
+Install with::
+
+    $ pip install audiogen
+    $ pip install pyaudio
+
+PyAudio is optional. If it's not installed, playing audio via the soundcard with
+``audiogen.sampler.play()`` will not be available, but generating Wave files – 
+including for piping to an external player, like ``sox`` – will work just fine. 
+
 .. _Sox: http://sox.sourceforge.net/
 

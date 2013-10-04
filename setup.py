@@ -8,15 +8,15 @@ extras_require = {
 }
 
 with open("README.rst", "rb") as f:
-	readme = f.read()
+	readme = f.read().decode('utf8')
 
 setup(
 	name="audiogen",
-	version="0.0.1",
+	version="0.0.2",
 	description="Generator based tools for working with audio clips.",
 	author="Christopher H. Casebeer",
 	author_email="",
-	url="",
+	url="https://github.com/casebeer/audiogen",
 
 	packages=find_packages(exclude='tests'),
 	install_requires=required_modules,
@@ -28,6 +28,8 @@ setup(
 	long_description=readme,
 	classifiers=[
 		"License :: OSI Approved :: BSD License",
+		"Programming Language :: Python :: 2.6",
+		"Programming Language :: Python :: 2.7",
 		"Intended Audience :: Developers",
 		"Topic :: Multimedia :: Sound/Audio",
 	]
