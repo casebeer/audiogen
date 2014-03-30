@@ -73,11 +73,16 @@ def sample(generator, min=-1, max=1, width=SAMPLE_WIDTH):
 	'''Convert audio waveform generator into packed sample generator.'''
 	# select signed char, short, or in based on sample width
 	fmt = { 1: '<B', 2: '<h', 4: '<i' }[width]
-	return (struct.pack(fmt, int(sample)) for sample in \
-			normalize(hard_clip(generator, min, max),\
-				min, max, -2**(width * 8 - 1), 2**(width * 8 - 1) - 1))
-#	scale = float(2**(width * 8) - 1) / (max - min)
-#	return (struct.pack('h', int((sample - min) * scale) - 2**(width * 8 - 1)) for sample in generator)
+
+	if width == 1:
+		min_out = 0
+		max_out = 2 ** 8
+	else:
+		min_out = - (2 ** (8 * width - 1))
+		max_out = 2 ** (8 * width - 1) - 1
+
+	for sample in normalize(hard_clip(generator, min, max), min, max, min_out, max_out):
+		yield struct.pack(fmt, int(sample))
 
 def sample_all(generators, *args, **kwargs):
 	'''Convert list of audio waveform generators into list of packed sample generators.'''
