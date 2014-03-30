@@ -18,8 +18,8 @@ import contextlib
 
 from StringIO import StringIO
 
-from .util import hard_clip
-from .util import normalize
+from audiogen.util import hard_clip
+from audiogen.util import normalize
 
 ### Constants
 

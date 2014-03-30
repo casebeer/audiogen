@@ -6,9 +6,9 @@ import itertools
 import struct
 import math
 
-from .noise import white_noise
-from .noise import white_noise_samples
-from .noise import red_noise
+from audiogen.noise import white_noise
+from audiogen.noise import white_noise_samples
+from audiogen.noise import red_noise
 
 import sampler 
 
