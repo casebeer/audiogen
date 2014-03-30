@@ -5,12 +5,25 @@ logger = logging.getLogger(__name__)
 import itertools
 import struct
 import math
+import collections
 
 from audiogen.noise import white_noise
 from audiogen.noise import white_noise_samples
 from audiogen.noise import red_noise
 
 import sampler 
+
+def grouper(iterable, n, fillvalue=None):
+    args = [iter(iterable)] * n
+    return itertools.izip_longest(*args, fillvalue=fillvalue)
+
+class RingBuffer(collections.deque):
+    def append(self, value):
+        discard = None
+        if len(self) == self.maxlen:
+            discard = self.popleft()
+        collections.deque.append(self, value)
+        return discard
 
 def crop(gens, seconds=5, cropper=None):
 	'''

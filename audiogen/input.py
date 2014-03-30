@@ -52,8 +52,6 @@ def raw_audio_input(rate=RATE, channels=CHANNELS, format_=None, input_device_ind
 
 	Yields one CHUNK_SIZE chunk of audio frames at a time from PyAudio's
 	input source. 
-
-
 	'''
 	p = pyaudio.PyAudio()
 	stream = p.open(
@@ -111,14 +109,6 @@ class AudioInputReader(threading.Thread):
 			with self.cv:
 				self.buffer_.append(self.empty)
 
-class RingBuffer(collections.deque):
-    def append(self, value):
-        discard = None
-        if len(self) == self.maxlen:
-            discard = self.popleft()
-        collections.deque.append(self, value)
-        return discard
-
 @contextlib.contextmanager
 def buffered_audio_input():
 	'''
@@ -134,7 +124,7 @@ def buffered_audio_input():
 			if chunk == reader.empty:
 				raise StopIteration()
 			# TODO: multiple channes, different formats, etc; must de-multiplex the Wave stream
-			for frame in grouper(chunk, WIDTH):
+			for frame in util.grouper(chunk, WIDTH):
 				yield b"".join(frame)
 	reader = None
 	try:
@@ -146,7 +136,7 @@ def buffered_audio_input():
 		if reader is not None:
 			reader.kill()
 
-from filters import *
+from audiogen.filters import *
 
 if __name__ == '__main__':
 	with buffered_audio_input() as bai:
@@ -164,7 +154,7 @@ if __name__ == '__main__':
 				yield output
 
 		def echo(gen, by=0.5):
-			buf = RingBuffer(maxlen=RATE * by)
+			buf = util.RingBuffer(maxlen=RATE * by)
 			for value in gen:
 				old = buf.append(value)
 				if old is None:
@@ -175,7 +165,7 @@ if __name__ == '__main__':
 			for value in gen:
 				yield value * 10 ** (float(db) / 20)
 
-		audiogen.sampler.play(volume(band_stop(gen(), 1000, 200), 0), blocking=False)
+		audiogen.sampler.play(volume(band_pass(bai, 1000, 200), 0), blocking=False)
 		#audiogen.sampler.play(volume(low_pass(gen(), 0.9), 0), blocking=False)
 		#audiogen.sampler.play(volume(band_pass(gen(), 440, 100), 0), blocking=False)
 		#audiogen.sampler.play(echo(echo(echo(lpf(gen(), 0.9), 0.3), .5), 1.0), blocking=False)
