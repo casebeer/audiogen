@@ -8,20 +8,43 @@ import collections
 import threading
 import contextlib
 import itertools
+import struct
 
 import audiogen
+from audiogen import util
 
 #FORMAT = pyaudio.paInt16
 WIDTH=2 # sample width in bytes
-WIDTH=1 # sample width in bytes
 RATE=44100
 CHUNK_SIZE=1024
 CHANNELS=1
 BUFFER_LENGTH=2**7 # = 2**17 bytes
 
-def grouper(iterable, n, fillvalue=None):
-    args = [iter(iterable)] * n
-    return itertools.izip_longest(*args, fillvalue=fillvalue)
+def unsample(generator, min_=-1, max_=1, width=WIDTH):
+	# select signed char, short, or in based on sample width
+	# todo: handle float wave formats
+	fmt = { 1: '<B', 2: '<h', 4: '<i' }[width]
+
+	def raw_values(generator):
+		for sample in generator:
+			yield struct.unpack(fmt, sample)[0]
+	
+	if width == 1:
+		# unsigned
+		min_in = 0
+		max_in = 2 ** 8
+	else:
+		# signed
+		min_in = - (2 ** (8 * width - 1))
+		max_in = 2 ** (8 * width - 1) - 1
+
+	return util.normalize(
+		raw_values(generator), 
+		min_in=min_in, 
+		max_in=max_in,
+		min_out=min_,
+		max_out=max_
+	)
 
 def raw_audio_input(rate=RATE, channels=CHANNELS, format_=None, input_device_index=None):
 	'''
@@ -117,7 +140,7 @@ def buffered_audio_input():
 	try:
 		reader = AudioInputReader()
 		reader.start()
-		yield gen(reader)
+		yield unsample(gen(reader))
 	finally:
 		logging.debug("Notifying reader thread to terminate.")
 		if reader is not None:
@@ -128,9 +151,9 @@ from filters import *
 if __name__ == '__main__':
 	with buffered_audio_input() as bai:
 		def gen():
-			for sample in bai:
+			for value in bai:
 				#value = float((ord(sample[1]) << 8) + ord(sample[0])) / 2**15 - 1
-				value = float(ord(sample)) / 2**7 - 1
+				#value = float(ord(sample)) / 2**7 - 1
 				yield value
 		alpha = 0.9
 
