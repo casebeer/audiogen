@@ -208,7 +208,7 @@ def _pyaudio_callback(wavgen):
 		return str(data), pyaudio.paContinue
 	return cb
 
-def play(gen, blocking=False):
+def play(gen, blocking=False, raw_samples=False):
 	'''
 	Play the contents of the generator using PyAudio
 
@@ -217,7 +217,7 @@ def play(gen, blocking=False):
 	'''
 	if not pyaudio_loaded:
 		raise Exception("Soundcard playback requires PyAudio. Install with `pip install pyaudio`.")
-	wavgen = wav_samples(gen)
+	wavgen = wav_samples(gen, raw_samples=raw_samples)
 	p = pyaudio.PyAudio()
 	stream = p.open(
 		format=p.get_format_from_width(SAMPLE_WIDTH),
