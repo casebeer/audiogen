@@ -1,7 +1,7 @@
 Audiogen
 ========
 
-The ``audiogen`` module provides time domain audio processing tools
+The ``audiogen`` package provides time domain audio processing tools
 using Python generators. 
 
 This makes some types of audio sample generation and processing pretty 
@@ -25,6 +25,10 @@ infinitely long output, e.g. to stream to speakers rather than a file on
 disk::
 
     audiogen.sampler.write_wav(sys.stdout, audiogen.tone(440))
+
+Or just::
+
+    audiogen.sampler.play(audiogen.tone(440))
 
 You can also use standard generator tools, e.g. the itertools module, to 
 handle audio data::
@@ -70,11 +74,16 @@ Installation
 Install with::
 
     $ pip install audiogen
-    $ pip install pyaudio
+    $ pip install --allow-external PyAudio --allow-unverified PyAudio PyAudio
 
 PyAudio is optional. If it's not installed, playing audio via the soundcard with
 ``audiogen.sampler.play()`` will not be available, but generating Wave files – 
 including for piping to an external player, like ``sox`` – will work just fine. 
+
+Version history
+---------------
+
+- 0.1.0 - Breaking changes: new arguments to tone(), play() blocks by default
 
 .. _Sox: http://sox.sourceforge.net/
 
