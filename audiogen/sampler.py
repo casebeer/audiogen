@@ -208,7 +208,7 @@ def _pyaudio_callback(wavgen):
 		return str(data), pyaudio.paContinue
 	return cb
 
-def play(gen, blocking=False, raw_samples=False):
+def play(gen, blocking=True, raw_samples=False):
 	'''
 	Play the contents of the generator using PyAudio
 
