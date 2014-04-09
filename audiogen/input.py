@@ -15,10 +15,18 @@ from audiogen import util
 
 #FORMAT = pyaudio.paInt16
 WIDTH=2 # sample width in bytes
+RATE=48000
+RATE=16000
 RATE=44100
+CHUNK_SIZE=2**17
+CHUNK_SIZE=2**14
 CHUNK_SIZE=1024
 CHANNELS=1
+
 BUFFER_LENGTH=2**7 # = 2**17 bytes
+BUFFER_SIZE=2**18
+BUFFER_SIZE=2**17
+BUFFER_LENGTH=int(BUFFER_SIZE/CHUNK_SIZE)
 
 def unsample(generator, min_=-1, max_=1, width=WIDTH):
 	# select signed char, short, or in based on sample width
@@ -102,7 +110,7 @@ class AudioInputReader(threading.Thread):
 				with self.cv:
 					if len(self.buffer_) >= self.buffer_.maxlen:
 						logging.error("audiogen input buffer overflow, read faster")
-#					print "Buffer is {}% full".format(100 * len(self.buffer_) / self.buffer_.maxlen)
+					print "Buffer is {}% full".format(100 * len(self.buffer_) / self.buffer_.maxlen)
 					self.buffer_.append(chunk)
 					self.cv.notify()
 		finally:
@@ -110,7 +118,7 @@ class AudioInputReader(threading.Thread):
 				self.buffer_.append(self.empty)
 
 @contextlib.contextmanager
-def buffered_audio_input():
+def buffered_audio_input(source=None):
 	'''
 	Context manager to get a buffered audio input generator
 
@@ -128,7 +136,7 @@ def buffered_audio_input():
 				yield b"".join(frame)
 	reader = None
 	try:
-		reader = AudioInputReader()
+		reader = AudioInputReader(source)
 		reader.start()
 		yield unsample(gen(reader))
 	finally:
@@ -136,9 +144,68 @@ def buffered_audio_input():
 		if reader is not None:
 			reader.kill()
 
-from audiogen.filters import *
+import wave
+
+def read_wav(f):
+	w = wave.open(f)
+	# TODO: read and use input wave metadata, e.g. frame rate, e.g. sample width
+	while True:
+		chunk = w.readframes(CHUNK_SIZE)
+		if len(chunk) == 0:
+			# TODO: what about streaming wav files that might underflow?
+			raise StopIteration()
+		yield chunk
+
+
+def read_raw(f):
+	while True:
+		chunk = f.read(CHUNK_SIZE)
+		yield chunk
+
+def parse_wav(gen):
+	def frames(gen):
+		for chunk in gen:
+			for frame in util.grouper(chunk, WIDTH):
+				yield b"".join(frame)
+	return unsample(frames(gen))
 
 if __name__ == '__main__':
+	from audiogen.filters import *
+	import sys
+
+	import time
+#
+#	with buffered_audio_input() as bai:
+#		time.sleep(10)
+#	
+#	sys.exit(0)
+
+	with audiogen.sampler.frame_rate(RATE):
+		with buffered_audio_input() as bai:
+			audiogen.sampler.play(band_pass(bai, 2000, 100), blocking=False)
+			time.sleep(30)
+		audiogen.sampler.play(band_pass(parse_wav(read_raw(sys.stdin)), 2000, 200), blocking=False)
+		time.sleep(20)
+		with buffered_audio_input(read_raw(sys.stdin)) as bai:
+			audiogen.sampler.play(high_pass(bai, .1), blocking=False)
+			time.sleep(10)
+	print "done"
+	sys.exit(0)
+
+	afsk = band_stop(
+				band_pass(
+					parse_wav(read_wav(open('afsk-noise.wav', 'rb'))), 
+					1700, 
+					1050
+				),
+				1700, 
+				950
+			)
+	audiogen.sampler.play(afsk, blocking=True)
+#	with open('output.wav', 'wb') as f:
+#		audiogen.sampler.write_wav(f, afsk)
+#
+#	sys.exit(0)
 	with buffered_audio_input() as bai:
 		def gen():
 			for value in bai:
@@ -165,7 +232,8 @@ if __name__ == '__main__':
 			for value in gen:
 				yield value * 10 ** (float(db) / 20)
 
-		audiogen.sampler.play(volume(band_pass(bai, 1000, 200), 0), blocking=False)
+		audiogen.sampler.play(volume(band_pass(bai, 50, 50), 0), blocking=True)
+		audiogen.sampler.play(volume(band_stop(band_pass(bai, 50, 50), 60, 15), 0), blocking=True)
 		#audiogen.sampler.play(volume(low_pass(gen(), 0.9), 0), blocking=False)
 		#audiogen.sampler.play(volume(band_pass(gen(), 440, 100), 0), blocking=False)
 		#audiogen.sampler.play(echo(echo(echo(lpf(gen(), 0.9), 0.3), .5), 1.0), blocking=False)
