@@ -1,4 +1,6 @@
 
+import util as util
+
 # Arcfour PRNG as a fast source of repeatable randomish numbers; totally unnecessary here, but simple.
 def arcfour(key, csbN=1):
 	'''Return a generator for the ARCFOUR/RC4 pseudorandom keystream for the 
@@ -38,7 +40,7 @@ def white_noise(key=(1,2,3,4,5)):
 		af = arcfour(key)
 		while True:
 			yield af.next() * 2**8 + af.next()
-	return normalize(prng(key), 0, 2**16)
+	return util.normalize(prng(key), 0, 2**16)
 
 def white_noise_samples(key=(1,2,3,4,5)):
 	af = arcfour(key)
@@ -56,7 +58,7 @@ def red_noise(key=(1,2,3,4,5)):
 			elif sample < min:
 				sample = min
 			yield sample
-	return normalize(random_walk(key), -1024, 1024)
+	return util.normalize(random_walk(key), -1024, 1024)
 
 '''
 RFC 6229
