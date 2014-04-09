@@ -3,3 +3,4 @@
 *.egg-info
 README.html
 dist/
+.DS_Store
