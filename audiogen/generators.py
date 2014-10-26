@@ -15,7 +15,7 @@ TWO_PI = 2 * math.pi
 ## Audio sample generators
 
 def beep(frequency=440):
-	for sample in util.crop_with_fades(tone(440), seconds=0.25):
+	for sample in util.crop_with_fades(tone(frequency), seconds=0.25):
 		yield sample
 
 def tone(frequency=440, min_=-1, max_=1):
