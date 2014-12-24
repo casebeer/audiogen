@@ -7,8 +7,8 @@ Assorted generators
 import math
 import itertools
 
-import util
-import sampler
+from . import util
+from . import sampler
 
 TWO_PI = 2 * math.pi
 
@@ -23,9 +23,9 @@ def tone(frequency=440, min_=-1, max_=1):
 		period = int(sampler.FRAME_RATE / frequency) 
 		time_scale = 2 * math.pi / period # period * scale = 2 * pi
 		# precompute fixed tone samples # TODO: what about phase glitches at end?
-		samples = [math.sin(i * time_scale) for i in xrange(period)]
+		samples = [math.sin(i * time_scale) for i in range(period)]
 		while True:
-			for i in xrange(period):
+			for i in range(period):
 				yield samples[i]
 	def variable_tone(frequency):
 		time_scale = TWO_PI / sampler.FRAME_RATE

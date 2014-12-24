@@ -16,7 +16,7 @@ import sys
 import errno
 import contextlib
 
-from StringIO import StringIO
+from io import StringIO
 
 from .util import hard_clip
 from .util import normalize
@@ -54,14 +54,14 @@ def sample_width(new_sample_width):
 def file_is_seekable(f):
 	'''
 	Returns True if file `f` is seekable, and False if not
-	
-	Useful to determine, for example, if `f` is STDOUT to 
+
+	Useful to determine, for example, if `f` is STDOUT to
 	a pipe.
 	'''
 	try:
 		f.tell()
 		logger.info("File is seekable!")
-	except IOError, e:
+	except IOError as e:
 		if e.errno == errno.ESPIPE:
 			return False
 		else:
@@ -89,24 +89,24 @@ def interleave(channels):
 
 	Accept a list of channel generators and generate a sequence
 	of frames, one sample from each channel per frame, in the order
-	of the channels in the list. 
+	of the channels in the list.
 	'''
 	while True:
-		yield "".join([channel.next() for channel in channels])
+		yield "".join([next(channel) for channel in channels])
 
 def buffer(stream, buffer_size=BUFFER_SIZE):
 	'''
 	Buffer the generator into byte strings of buffer_size samples
 
 	Return a generator that outputs reasonably sized byte strings
-	containing buffer_size samples from the generator stream. 
+	containing buffer_size samples from the generator stream.
 
-	This allows us to outputing big chunks of the audio stream to 
+	This allows us to outputing big chunks of the audio stream to
 	disk at once for faster writes.
 	'''
 	i = iter(stream)
-	return iter(lambda: "".join(itertools.islice(i, buffer_size)), "") 
-	
+	return iter(lambda: "".join(itertools.islice(i, buffer_size)), "")
+
 
 def wav_samples(channels, sample_width=SAMPLE_WIDTH, raw_samples=False):
 	if hasattr(channels, 'next'):
@@ -159,11 +159,11 @@ def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False, seekabl
 
 	w = wave.open(f)
 	w.setparams((
-		channel_count, 
-		sample_width, 
-		FRAME_RATE, 
+		channel_count,
+		sample_width,
+		FRAME_RATE,
 		0, # setting zero frames, should update automatically as more frames written
-		COMPRESSION_TYPE, 
+		COMPRESSION_TYPE,
 		COMPRESSION_NAME
 		))
 
@@ -175,13 +175,13 @@ def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False, seekabl
 		else:
 			w.setnframes((0x7FFFFFFF - 36) / w.getnchannels() / w.getsampwidth())
 			logger.debug("Setting frames to: {0}, {1}".format((w.getnframes()), w._nframes))
-	
+
 	for chunk in buffer(stream):
 		logger.debug("Writing %d bytes..." % len(chunk))
 		if output_seekable:
 			w.writeframes(chunk)
 		else:
-			# tell wave module not to update nframes header field 
+			# tell wave module not to update nframes header field
 			# if output stream not seekable, e.g. STDOUT to a pipe
 			w.writeframesraw(chunk)
 	w.close()
@@ -213,7 +213,7 @@ def play(channels, blocking=True, raw_samples=False):
 	Play the contents of the generator using PyAudio
 
 	Play to the system soundcard using PyAudio. PyAudio, an otherwise optional
-	depenency, must be installed for this feature to work. 
+	depenency, must be installed for this feature to work.
 	'''
 	if not pyaudio_loaded:
 		raise Exception("Soundcard playback requires PyAudio. Install with `pip install pyaudio`.")
