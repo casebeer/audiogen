@@ -1,17 +1,13 @@
 
-import logging 
+import logging
+from functools import reduce
 logger = logging.getLogger(__name__)
 
 import itertools
 import struct
 import math
 
-from .noise import white_noise
-from .noise import white_noise_samples
-from .noise import red_noise
-
-import sampler 
-
+FRAME_RATE = 44100
 def crop(gens, seconds=5, cropper=None):
 	'''
 	Crop the generator to a finite number of frames
@@ -25,8 +21,8 @@ def crop(gens, seconds=5, cropper=None):
 		gens = (gens,)
 
 	if cropper == None:
-		print "cropping %d channel(s) to %d samples each" % (len(gens), seconds * sampler.FRAME_RATE)
-		cropper = lambda gen: itertools.islice(gen, 0, seconds * sampler.FRAME_RATE)
+		print("cropping %d channel(s) to %d samples each" % (len(gens), seconds * FRAME_RATE))
+		cropper = lambda gen: itertools.islice(gen, 0, seconds * FRAME_RATE)
 
 	cropped = [cropper(gen) for gen in gens]
 	return cropped[0] if len(cropped) == 1 else cropped
@@ -34,16 +30,16 @@ def crop(gens, seconds=5, cropper=None):
 def crop_with_fades(gen, seconds, fade_in=0.01, fade_out=0.01):
 	source = iter(gen)
 
-	total_samples = int(seconds * sampler.FRAME_RATE)
-	fade_in_samples = int(fade_in * sampler.FRAME_RATE)
-	fade_out_samples = int(fade_out * sampler.FRAME_RATE)
+	total_samples = int(seconds * FRAME_RATE)
+	fade_in_samples = int(fade_in * FRAME_RATE)
+	fade_out_samples = int(fade_out * FRAME_RATE)
 
 	start = itertools.islice(source, 0, fade_in_samples)
 	middle = itertools.islice(source, 0, total_samples - (fade_in_samples + fade_out_samples))
 	end = itertools.islice(source, 0, fade_out_samples)
 
 	def linear_fade(samples, direction="in"):
-		for i in xrange(samples):
+		for i in range(samples):
 			if direction == "in":
 				yield ( 1.0 / samples ) * i + 0
 			elif direction == "out":
@@ -58,28 +54,28 @@ def crop_with_fades(gen, seconds, fade_in=0.01, fade_out=0.01):
 
 	for sample in middle:
 		yield sample
-	
+
 	for sample in multiply(end, linear_fade(fade_out_samples, direction="out")):
 		yield sample
 
 def crop_with_fade_out(gen, seconds, fade=.01):
 	source = iter(gen)
 
-	total_samples = int(seconds * sampler.FRAME_RATE)
-	fade_samples = int(fade * sampler.FRAME_RATE)
+	total_samples = int(seconds * FRAME_RATE)
+	fade_samples = int(fade * FRAME_RATE)
 
 	start = itertools.islice(source, 0, total_samples - fade_samples)
 	end = itertools.islice(source, 0, fade_samples)
 
 	def fader():
-		for i in xrange(fade_samples):
+		for i in range(fade_samples):
 			yield 1 - (float(i) / fade_samples) ** 1
 		while True:
 			yield 0
 
 	for sample in start:
 		yield sample
-	
+
 	for sample in multiply(end, fader()):
 		yield sample
 
@@ -88,19 +84,19 @@ def crop_at_zero_crossing(gen, seconds=5, error=0.1):
 	'''
 	Crop the generator, ending at a zero-crossing
 
-	Crop the generator to produce approximately seconds seconds 
-	(default 5s) of audio at the provided FRAME_RATE, attempting 
-	to end the clip at a zero crossing point to avoid clicking. 
+	Crop the generator to produce approximately seconds seconds
+	(default 5s) of audio at the provided FRAME_RATE, attempting
+	to end the clip at a zero crossing point to avoid clicking.
 	'''
 	source = iter(gen)
-	buffer_length = int(2 * error * sampler.FRAME_RATE)
-	
+	buffer_length = int(2 * error * FRAME_RATE)
+
 	# split the source into two iterators:
 	# - start, which contains the bulk of the sound clip
-	# - and end, which contains the final 100ms, plus 100ms past 
-	#   the desired clip length. We may cut the clip anywhere 
+	# - and end, which contains the final 100ms, plus 100ms past
+	#   the desired clip length. We may cut the clip anywhere
 	#   within this +/-100ms end buffer.
-	start = itertools.islice(source, 0, int((seconds - error) * sampler.FRAME_RATE))
+	start = itertools.islice(source, 0, int((seconds - error) * FRAME_RATE))
 	end = itertools.islice(source, 0, buffer_length)
 
 	for sample in start:
@@ -111,14 +107,14 @@ def crop_at_zero_crossing(gen, seconds=5, error=0.1):
 
 	# find min by sorting buffer samples, first by abs of sample, then by distance from optimal
 	best = sorted(enumerate(end), key=lambda x: (math.fabs(x[1]),abs((buffer_length/2)-x[0])))
-	print best[:10]
-	print best[0][0]
+	print(best[:10])
+	print(best[0][0])
 
 	# todo: better logic when we don't have a perfect zero crossing
 	#if best[0][1] != 0:
 	#	# we don't have a perfect zero crossing, so let's look for best fit?
 	#	pass
-	
+
 	# crop samples at index of best zero crossing
 	for sample in end[:best[0][0] + 1]:
 		yield sample
@@ -130,7 +126,7 @@ def normalize(generator, min_in=0, max_in=256, min_out=-1, max_out=1):
 
 def hard_clip(generator, min=-1, max=1):
 	while True:
-		sample = generator.next()
+		sample = next(generator)
 		if sample > max:
 			logger.warn("Warning, clipped value %f > max %f" % (sample, max))
 			yield max
@@ -142,10 +138,10 @@ def hard_clip(generator, min=-1, max=1):
 
 def vector_reduce(op, generators):
 	while True:
-		yield reduce(op, [g.next() for g in generators])
+		yield reduce(op, [next(g) for g in generators])
 def vector_reduce1(op, generators):
 	while True:
-		yield reduce(op, [g.next() for g in generators])
+		yield reduce(op, [next(g) for g in generators])
 
 def sum(*generators):
 	return vector_reduce(lambda a,b: a + b, generators)
@@ -175,8 +171,8 @@ def clip(gen, limit):
 	if not hasattr(limit, 'next'):
 		limit = constant(limit)
 	while True:
-		sample = gen.next()
-		current_limit = limit.next()
+		sample = next(gen)
+		current_limit = next(limit)
 		if math.fabs(sample) > current_limit:
 			yield current_limit * (math.fabs(sample) / sample if sample != 0 else 0)
 		else:
@@ -186,14 +182,14 @@ def envelope(gen, volume):
 	if not hasattr(volume, 'next'):
 		volume = constant(volume)
 	while True:
-		sample = gen.next()
-		current_volume = volume.next()
+		sample = next(gen)
+		current_volume = next(volume)
 		yield current_volume * sample
 
 def loop(*gens):
 	loops = [list(gen) for gen in gens]
 	while True:
-		for loop in loops: 
+		for loop in loops:
 			for sample in loop:
 				yield sample
 
@@ -201,37 +197,37 @@ def mixer(inputs, mix=None):
 	'''
 	Mix `inputs` together based on `mix` tuple
 
-	`inputs` should be a tuple of *n* generators. 
+	`inputs` should be a tuple of *n* generators.
 
 	`mix` should be a tuple of *m* tuples, one per desired
 	output channel. Each of the *m* tuples should contain
-	*n* generators, corresponding to the time-sequence of 
+	*n* generators, corresponding to the time-sequence of
 	the desired mix levels for each of the *n* input channels.
 
 	That is, to make an ouput channel contain a 50/50 mix of the
 	two input channels, the tuple would be:
 
 	    (constant(0.5), constant(0.5))
-	
+
 	The mix generators need not be constant, allowing for time-varying
-	mix levels: 
+	mix levels:
 
 	    # 50% from input 1, pulse input 2 over a two second cycle
 	    (constant(0.5), tone(0.5))
 
-	The mixer will return a list of *m* generators, each containing 
-	the data from the inputs mixed as specified. 
+	The mixer will return a list of *m* generators, each containing
+	the data from the inputs mixed as specified.
 
 	If no `mix` tuple is specified, all of the *n* input channels
-	will be mixed together into one generator, with the volume of 
+	will be mixed together into one generator, with the volume of
 	each reduced *n*-fold.
 
 	Example:
 
-	    # three in, two out; 
+	    # three in, two out;
 	    # 10Hz binaural beat with white noise across both channels
 	    mixer(
-	    		(white_noise(), tone(440), tone(450)), 
+	    		(white_noise(), tone(440), tone(450)),
 	    		(
 	    			(constant(.5), constant(1), constant(0)),
 	    			(constant(.5), constant(0), constant(1)),
