@@ -1,4 +1,4 @@
-
+import inspect
 import logging
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ import sys
 import errno
 import contextlib
 
-from io import StringIO
+from io import BytesIO, IOBase
 
 from .util import hard_clip
 from .util import normalize
@@ -112,7 +112,6 @@ def wav_samples(channels, sample_width=SAMPLE_WIDTH, raw_samples=False):
 	if hasattr(channels, 'next'):
 		# if passed one generator, we have one channel
 		channels = (channels,)
-	channel_count = len(channels)
 	if not raw_samples:
 		# we have audio waveforms, so sample/pack them first
 		channels = sample_all(channels, width=sample_width)
@@ -133,7 +132,7 @@ class NonSeekableFileProxy(object):
 
 def wave_module_patched():
 	'''True if wave module can write data size of 0xFFFFFFFF, False otherwise.'''
-	f = StringIO()
+	f = BytesIO()
 	w = wave.open(f, "wb")
 	w.setparams((1, 2, 44100, 0, "NONE", "no compression"))
 	patched = True
@@ -149,9 +148,9 @@ def wave_module_patched():
 
 def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False, seekable=None):
 	stream = wav_samples(channels, sample_width, raw_samples)
-	channel_count = 1 if hasattr(channels, "next") else len(channels)
+	channel_count = 1 if inspect.isgenerator(channels) else len(channels)
 
-	output_seekable = file_is_seekable(f) if seekable is None else seekable
+	output_seekable = IOBase.seekable(f) if seekable is None else seekable
 
 	if not output_seekable:
 		# protect the non-seekable file, since Wave_write will call tell
