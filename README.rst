@@ -80,6 +80,10 @@ PyAudio is optional. If it's not installed, playing audio via the soundcard with
 ``audiogen.sampler.play()`` will not be available, but generating Wave files – 
 including for piping to an external player, like ``sox`` – will work just fine. 
 
+Note that to install PyAudio on Mac OS X, you'll need to first install `portaudio`::
+
+    $ brew install portaudio
+
 Version history
 ---------------
 
