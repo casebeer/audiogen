@@ -87,6 +87,8 @@ Note that to install PyAudio on Mac OS X, you'll need to first install `portaudi
 Version history
 ---------------
 
+- 0.1.1 - Fix multiplexing bug causing increase in pitch when using mixer() to produce
+  more than one output channel
 - 0.1.0 - Breaking changes: new arguments to tone(), play() blocks by default
 
 .. _Sox: http://sox.sourceforge.net/
