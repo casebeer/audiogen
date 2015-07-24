@@ -241,9 +241,13 @@ def mixer(inputs, mix=None):
 	if mix == None:
 		# by default, mix all inputs down to one channel
 		mix = ([constant(1.0 / len(inputs))] * len(inputs),)
+
+	duped_inputs = zip(*[itertools.tee(i, len(mix)) for i in inputs])
+
+# second zip is backwards
 	return [\
-			sum(*[multiply(m,i) for m,i in zip(channel_mix, inputs)])\
-			for channel_mix in mix\
+			sum(*[multiply(m,i) for m,i in zip(channel_mix, channel_inputs)])\
+			for channel_mix, channel_inputs in zip(mix, duped_inputs) \
 			]
 
 def channelize(gen, channels):
