@@ -25,7 +25,6 @@ def crop(gens, seconds=5, cropper=None):
 		gens = (gens,)
 
 	if cropper == None:
-		print "cropping %d channel(s) to %d samples each" % (len(gens), seconds * sampler.FRAME_RATE)
 		cropper = lambda gen: itertools.islice(gen, 0, seconds * sampler.FRAME_RATE)
 
 	cropped = [cropper(gen) for gen in gens]
