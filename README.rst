@@ -84,6 +84,21 @@ Note that to install PyAudio on Mac OS X, you'll need to first install `portaudi
 
     $ brew install portaudio
 
+See also
+--------
+
+Projects built with ``audiogen``:
+
+- `koch <https://github.com/casebeer/koch>`__, a Koch method Morse code trainer and audio generator
+- `afsk <https://github.com/casebeer/afsk>`__, a ham radio APRS/Bell-202 audio frequency shift keying encoder
+
+Contributing
+------------
+
+Get the source and report any bugs on Github:
+
+    https://github.com/casebeer/audiogen
+
 Version history
 ---------------
 
