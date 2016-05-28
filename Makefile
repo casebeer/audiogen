@@ -9,11 +9,14 @@ docs: README.html
 README.html: README.rst
 	pandoc $^ > $@
 
-register:
+register: checkmetadata
 	python setup.py register
 
-upload: 
+upload: checkmetadata
 	python setup.py sdist upload --sign -r https://pypi.python.org/pypi
+
+checkmetadata:
+	python setup.py check -s --restructuredtext
 
 clean:
 	find . -type f -name '*.pyc' -print0 | xargs -0 rm -f -- 
