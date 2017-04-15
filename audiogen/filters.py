@@ -8,8 +8,8 @@ import math
 import itertools
 import collections
 
-import util
-import sampler
+from audiogen import util
+from audiogen import sampler
 
 TWO_PI = 2 * math.pi
 
