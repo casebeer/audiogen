@@ -1,5 +1,4 @@
-
-import util as util
+from audiogen import util
 
 # Arcfour PRNG as a fast source of repeatable randomish numbers; totally unnecessary here, but simple.
 def arcfour(key, csbN=1):

@@ -10,7 +10,7 @@ from .noise import white_noise
 from .noise import white_noise_samples
 from .noise import red_noise
 
-import sampler 
+from audiogen import sampler
 
 def crop(gens, seconds=5, cropper=None):
 	'''
@@ -110,8 +110,8 @@ def crop_at_zero_crossing(gen, seconds=5, error=0.1):
 
 	# find min by sorting buffer samples, first by abs of sample, then by distance from optimal
 	best = sorted(enumerate(end), key=lambda x: (math.fabs(x[1]),abs((buffer_length/2)-x[0])))
-	print best[:10]
-	print best[0][0]
+	print(best[:10])
+	print(best[0][0])
 
 	# todo: better logic when we don't have a perfect zero crossing
 	#if best[0][1] != 0:

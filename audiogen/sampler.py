@@ -16,7 +16,7 @@ import sys
 import errno
 import contextlib
 
-from StringIO import StringIO
+import io
 
 from .util import hard_clip
 from .util import normalize
@@ -61,7 +61,7 @@ def file_is_seekable(f):
 	try:
 		f.tell()
 		logger.info("File is seekable!")
-	except IOError, e:
+	except IOError as e:
 		if e.errno == errno.ESPIPE:
 			return False
 		else:
@@ -133,7 +133,7 @@ class NonSeekableFileProxy(object):
 
 def wave_module_patched():
 	'''True if wave module can write data size of 0xFFFFFFFF, False otherwise.'''
-	f = StringIO()
+	f = io()
 	w = wave.open(f, "wb")
 	w.setparams((1, 2, 44100, 0, "NONE", "no compression"))
 	patched = True
