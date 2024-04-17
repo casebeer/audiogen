@@ -12,7 +12,7 @@ with open("README.rst", "rb") as f:
 
 setup(
 	name="audiogen",
-	version="0.1.2",
+	version="0.2.0",
 	description="Generator based tools for working with audio clips.",
 	author="Christopher H. Casebeer",
 	author_email="",
@@ -22,16 +22,11 @@ setup(
 	install_requires=required_modules,
 	extras_require=extras_require,
 
-	tests_require=["nose"],
-	test_suite="nose.collector",
-
 	long_description=readme,
 	classifiers=[
 		"License :: OSI Approved :: BSD License",
-		"Programming Language :: Python :: 2.6",
-		"Programming Language :: Python :: 2.7",
+		"Programming Language :: Python :: 3.11",
 		"Intended Audience :: Developers",
 		"Topic :: Multimedia :: Sound/Audio",
 	]
 )
-

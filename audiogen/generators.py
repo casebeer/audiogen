@@ -1,14 +1,15 @@
 # coding=utf8
 
 '''
-Assorted generators 
+Assorted generators
 '''
 
+from __future__ import absolute_import
 import math
 import itertools
 
-import util
-import sampler
+from . import util
+from . import sampler
 
 TWO_PI = 2 * math.pi
 
@@ -20,12 +21,12 @@ def beep(frequency=440, seconds=0.25):
 
 def tone(frequency=440, min_=-1, max_=1):
 	def fixed_tone(frequency):
-		period = int(sampler.FRAME_RATE / frequency) 
+		period = int(sampler.FRAME_RATE / frequency)
 		time_scale = 2 * math.pi / period # period * scale = 2 * pi
 		# precompute fixed tone samples # TODO: what about phase glitches at end?
-		samples = [math.sin(i * time_scale) for i in xrange(period)]
+		samples = [math.sin(i * time_scale) for i in range(period)]
 		while True:
-			for i in xrange(period):
+			for i in range(period):
 				yield samples[i]
 	def variable_tone(frequency):
 		time_scale = TWO_PI / sampler.FRAME_RATE
@@ -39,7 +40,7 @@ def tone(frequency=440, min_=-1, max_=1):
 			if phase > TWO_PI:
 				phase -= TWO_PI
 
-	if not hasattr(frequency, 'next'):
+	if not hasattr(frequency, '__next__'):
 		gen = fixed_tone(frequency)
 	else:
 		gen = variable_tone(frequency)
@@ -62,4 +63,3 @@ def silence(seconds=None):
 	else:
 		while True:
 			yield 0
-
