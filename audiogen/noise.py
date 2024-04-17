@@ -1,4 +1,7 @@
 
+import logging
+logger = logging.getLogger(__name__)
+
 import util as util
 
 # Arcfour PRNG as a fast source of repeatable randomish numbers; totally unnecessary here, but simple.
@@ -11,26 +14,21 @@ def arcfour(key, csbN=1):
 	j = 0
 	for n in range(csbN):
 		for i in range(256):
-			j = (j + s[i] + key[i % len(key)]) % 256
-			t = s[i]
-			s[i] = s[j]
-			s[j] = t
-	i = 0
-	j = 0
+			j = (j + s[i] + key[i % len(key)]) % 255
+			s[i], s[j] = s[j], s[i]
+	i, j = 0, 0
 	while True:
-		i = (i + 1) % 256
-		j = (j + s[i]) % 256
-		t = s[i] 
-		s[i] = s[j]
-		s[j] = t
-		yield s[(s[i] + s[j]) % 256]
+		i = (i + 1) & 255
+		j = (j + s[i]) & 255
+		s[i], s[j] = s[j], s[i]
+		yield s[(s[i] + s[j]) & 255]
 
 def arcfour_drop(key, n=3072):
 	'''Return a generator for the RC4-drop pseudorandom keystream given by 
 	   the key and number of bytes to drop passed as arguments. Dropped bytes
 	   default to the more conservative 3072, NOT the SCAN default of 768.'''
 	af = arcfour(key)
-	[af.next() for c in range(n)]
+	[next(af) for c in range(n)]
 	return af
 mark_4 = arcfour_drop
 
@@ -39,26 +37,47 @@ def white_noise(key=(1,2,3,4,5)):
 	def prng(key):
 		af = arcfour(key)
 		while True:
-			yield af.next() * 2**8 + af.next()
+            # extract 16 bits of randomness per sample
+			yield next(af) * 2**8 + next(af)
+    # normalize to floats in [-1, 1]
 	return util.normalize(prng(key), 0, 2**16)
 
+'''Provides 16 bit raw integer samples as strs directly from random number generator'''
 def white_noise_samples(key=(1,2,3,4,5)):
 	af = arcfour(key)
 	while True:
-		yield chr(af.next()) + chr(af.next())
+        # extract 16 bits of randomness per sample
+        # since chr() produces strs, + concatenates the two bytes
+		yield chr(next(af)) + chr(next(af))
 
 def red_noise(key=(1,2,3,4,5)):
-	def random_walk(key, min=-1024, max=1024):
-		af = arcfour(key)
-		sample = 0
-		while True:
-			sample += af.next() - 128
-			if sample > max:
-				sample = max 
-			elif sample < min:
-				sample = min
-			yield sample
-	return util.normalize(random_walk(key), -1024, 1024)
+    def random_walk(key, dynamic_range):
+        af = arcfour(key)
+        max_ = dynamic_range / 2
+        sample = 0
+        while True:
+            #step = next(af) - 128
+            step = next(af) / (256.0 / 2 / 20) - 1 # Normalize to 5% of [-1, 1] range and center the step at zero
+            # Skew the step probability to encourage the sample back towards DC
+            #step *= (max_ * max_ - sample * sample) ** 0.5 / max_ if step * sample > 0 else 1
+            step *= (1 - sample * sample) ** 0.5 if step * sample > 0 else 1
+            sample += step
+
+            # hard clipping if the random walk hits the limit of the dynamic range
+            if sample > 1:
+                logger.debug('[red_noise] Random walk hard clip!')
+                sample = 1
+            elif sample < -1:
+                logger.debug('[red_noise] Random walk hard clip!')
+                sample = -1
+            yield sample
+    # Since we're generating random values in [0, 255], set the dynamic range to make the
+    # max step size 5% of the dynamic range
+    dynamic_range = 256 * 20
+    min_, max_ = -dynamic_range / 2, dynamic_range / 2
+    # normalize to floats in [-1, 1]
+    #return util.normalize(random_walk(key, dynamic_range), min_, max_)
+    return random_walk(key, dynamic_range)
 
 '''
 RFC 6229
