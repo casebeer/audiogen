@@ -8,9 +8,9 @@ This makes some types of audio sample generation and processing pretty
 easy::
 
 	# mix 440 Hz and 445 Hz tones to get 5 Hz beating
-	beats = audiogen.mixer(
+	beats = audiogen.util.mixer(
 		(audiogen.tone(440), audiogen.tone(445)),
-		[(constant(1), constant(1)),]
+		[(audiogen.util.constant(1), audiogen.util.constant(1)),]
 	)
 
 The actual samples won't be generated or stored in memory until they're
@@ -18,7 +18,7 @@ actually consumed – for instance, when they're being written out to disk
 in a wave \file::
 
     with open("output.wav", "wb") as f:
-        audiogen.sampler.write_wav(f, beats)
+        audiogen.sampler.write_wav(f, audiogen.util.crop(beats, seconds=15))
 
 Generators' at-consumption-time computation also allows creating
 infinitely long output, e.g. to stream to speakers rather than a file on
@@ -29,6 +29,10 @@ disk::
 Or just::
 
     audiogen.sampler.play(audiogen.tone(440))
+
+You'll need to stop the tone playback with `Ctrl-C`. Note that above, we had
+use `audiogen.util.crop` to limit the `beats` generator to 15 seconds so we
+could write a fixed-size file.
 
 You can also use standard generator tools, e.g. the itertools module, to
 handle audio data::
