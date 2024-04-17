@@ -6,9 +6,9 @@ import itertools
 import struct
 import math
 
-from .noise import white_noise
-from .noise import white_noise_samples
-from .noise import red_noise
+from noise import white_noise
+from noise import white_noise_samples
+from noise import red_noise
 
 import sampler 
 
@@ -129,7 +129,7 @@ def normalize(generator, min_in=0, max_in=256, min_out=-1, max_out=1):
 
 def hard_clip(generator, min=-1, max=1):
 	while True:
-		sample = generator.next()
+		sample = next(generator)
 		if sample > max:
 			logger.warn("Warning, clipped value %f > max %f" % (sample, max))
 			yield max
@@ -141,10 +141,10 @@ def hard_clip(generator, min=-1, max=1):
 
 def vector_reduce(op, generators):
 	while True:
-		yield reduce(op, [g.next() for g in generators])
+		yield reduce(op, [next(g) for g in generators])
 def vector_reduce1(op, generators):
 	while True:
-		yield reduce(op, [g.next() for g in generators])
+		yield reduce(op, [next(g) for g in generators])
 
 def sum(*generators):
 	return vector_reduce(lambda a,b: a + b, generators)
@@ -152,9 +152,39 @@ def sum(*generators):
 def multiply(*generators):
 	return vector_reduce1(lambda a,b: a * b, generators)
 
-def constant(value):
+class Constant(object):
+    def __init__(self, value):
+        self.value = value
+    def send(self, ignored_arg):
+        return self.value
+    def throw(self, type=None, value=None, traceback=None):
+        raise StopIteration
+    def __iter__(self):
+        return self
+    def next(self):
+        return self.send(None)
+    def close(self):
+        """Raise GeneratorExit inside generator.
+        """
+        try:
+            self.throw(GeneratorExit)
+        except (GeneratorExit, StopIteration):
+            pass
+        else:
+            raise RuntimeError("generator ignored GeneratorExit")
+    def __repr__(self):
+        return 'Constant({})'.format(self.value)
+
+def constantf(value):
 	while True:
 		yield value
+constant = Constant
+
+#class AudioGen(object):
+#    def __init__(self, function):
+#        self.function = function
+#    def __call__(self, *args, **kwargs):
+#        ret = yield from self.function(*args, **kwargs)
 
 # filters
 
