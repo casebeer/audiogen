@@ -99,8 +99,11 @@ def interleave(channels):
     of frames, one sample from each channel per frame, in the order
     of the channels in the list.
     '''
-    while True:
-        yield b''.join([next(channel) for channel in channels])
+    try:
+        while True:
+            yield b''.join([next(channel) for channel in channels])
+    except StopIteration:
+        pass
 
 
 def buffer(stream, buffer_size=BUFFER_SIZE):

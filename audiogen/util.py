@@ -141,16 +141,19 @@ def normalize(generator, min_in=0, max_in=256, min_out=-1, max_out=1):
 
 
 def hard_clip(generator, min=-1, max=1):
-    while True:
-        sample = next(generator)
-        if sample > max:
-            logger.warn("Warning, clipped value %f > max %f" % (sample, max))
-            yield max
-        elif sample < min:
-            logger.warn("Warning, clipped value %f < min %f" % (sample, min))
-            yield min
-        else:
-            yield sample
+    try:
+        while True:
+            sample = next(generator)
+            if sample > max:
+                logger.warn(f"Warning, clipped value {sample} > max {max}")
+                yield max
+            elif sample < min:
+                logger.warn(f"Warning, clipped value {sample} < min {min}")
+                yield min
+            else:
+                yield sample
+    except StopIteration:
+        pass
 
 
 def vector_reduce(op, generators):
@@ -191,8 +194,11 @@ def volume(gen, dB=0):
         scale = 10 ** (dB / 20.)
     else:
         def scale_gen():
-            while True:
-                yield 10 ** (next(dB) / 20.)
+            try:
+                while True:
+                    yield 10 ** (next(dB) / 20.)
+            except StopIteration:
+                pass
         scale = scale_gen()
     return envelope(gen, scale)
 
@@ -200,23 +206,30 @@ def volume(gen, dB=0):
 def clip(gen, limit):
     if not hasattr(limit, '__next__'):
         limit = constant(limit)
-    while True:
-        sample = next(gen)
-        current_limit = next(limit)
-        if math.fabs(sample) > current_limit:
-            yield current_limit * (math.fabs(sample) / sample
-                                   if sample != 0 else 0)
-        else:
-            yield sample
+    try:
+        while True:
+            sample = next(gen)
+            current_limit = next(limit)
+            if math.fabs(sample) > current_limit:
+                yield current_limit * (math.fabs(sample) / sample
+                                       if sample != 0 else 0)
+            else:
+                yield sample
+    except StopIteration:
+        pass
 
 
 def envelope(gen, volume):
     if not hasattr(volume, '__next__'):
         volume = constant(volume)
-    while True:
-        sample = next(gen)
-        current_volume = next(volume)
-        yield current_volume * sample
+    try:
+        while True:
+            sample = next(gen)
+            current_volume = next(volume)
+            yield current_volume * sample
+    except StopIteration:
+        pass
+
 
 def loop(*gens):
     loops = [list(gen) for gen in gens]
@@ -224,6 +237,7 @@ def loop(*gens):
         for loop in loops:
             for sample in loop:
                 yield sample
+
 
 def mixer(inputs, mix=None):
     '''
