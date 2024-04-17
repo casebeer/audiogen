@@ -2,64 +2,72 @@
 # from __future__ import absolute_import
 from . import util as util
 
-# Arcfour PRNG as a fast source of repeatable randomish numbers; totally unnecessary here, but simple.
+
+# Arcfour PRNG as a fast source of repeatable randomish numbers;
+# totally unnecessary here, but simple.
 def arcfour(key, csbN=1):
-	'''Return a generator for the ARCFOUR/RC4 pseudorandom keystream for the
-	   key provided. Keys should be byte strings or sequences of ints.'''
-	if isinstance(key, str):
-		key = [ord(c) for c in key]
-	s = list(range(256))
-	j = 0
-	for n in range(csbN):
-		for i in range(256):
-			j = (j + s[i] + key[i % len(key)]) % 256
-			t = s[i]
-			s[i] = s[j]
-			s[j] = t
-	i = 0
-	j = 0
-	while True:
-		i = (i + 1) % 256
-		j = (j + s[i]) % 256
-		t = s[i]
-		s[i] = s[j]
-		s[j] = t
-		yield s[(s[i] + s[j]) % 256]
+    '''Return a generator for the ARCFOUR/RC4 pseudorandom keystream for the
+       key provided. Keys should be byte strings or sequences of ints.'''
+    if isinstance(key, str):
+        key = [ord(c) for c in key]
+    s = list(range(256))
+    j = 0
+    for n in range(csbN):
+        for i in range(256):
+            j = (j + s[i] + key[i % len(key)]) % 256
+            t = s[i]
+            s[i] = s[j]
+            s[j] = t
+    i = 0
+    j = 0
+    while True:
+        i = (i + 1) % 256
+        j = (j + s[i]) % 256
+        t = s[i]
+        s[i] = s[j]
+        s[j] = t
+        yield s[(s[i] + s[j]) % 256]
+
 
 def arcfour_drop(key, n=3072):
-	'''Return a generator for the RC4-drop pseudorandom keystream given by
-	   the key and number of bytes to drop passed as arguments. Dropped bytes
-	   default to the more conservative 3072, NOT the SCAN default of 768.'''
-	af = arcfour(key)
-	[next(af) for c in range(n)]
-	return af
+    '''Return a generator for the RC4-drop pseudorandom keystream given by
+       the key and number of bytes to drop passed as arguments. Dropped bytes
+       default to the more conservative 3072, NOT the SCAN default of 768.'''
+    af = arcfour(key)
+    [next(af) for c in range(n)]
+    return af
+
+
 mark_4 = arcfour_drop
 
 
-def white_noise(key=(1,2,3,4,5)):
-	def prng(key):
-		af = arcfour(key)
-		while True:
-			yield next(af) * 2**8 + next(af)
-	return util.normalize(prng(key), 0, 2**16)
+def white_noise(key=(1, 2, 3, 4, 5)):
+    def prng(key):
+        af = arcfour(key)
+        while True:
+            yield next(af) * 2**8 + next(af)
+    return util.normalize(prng(key), 0, 2**16)
 
-def white_noise_samples(key=(1,2,3,4,5)):
-	af = arcfour(key)
-	while True:
-		yield chr(next(af)) + chr(next(af))
 
-def red_noise(key=(1,2,3,4,5)):
-	def random_walk(key, min=-1024, max=1024):
-		af = arcfour(key)
-		sample = 0
-		while True:
-			sample += next(af) - 128
-			if sample > max:
-				sample = max
-			elif sample < min:
-				sample = min
-			yield sample
-	return util.normalize(random_walk(key), -1024, 1024)
+def white_noise_samples(key=(1, 2, 3, 4, 5)):
+    af = arcfour(key)
+    while True:
+        yield chr(next(af)) + chr(next(af))
+
+
+def red_noise(key=(1, 2, 3, 4, 5)):
+    def random_walk(key, min=-1024, max=1024):
+        af = arcfour(key)
+        sample = 0
+        while True:
+            sample += next(af) - 128
+            if sample > max:
+                sample = max
+            elif sample < min:
+                sample = min
+            yield sample
+    return util.normalize(random_walk(key), -1024, 1024)
+
 
 '''
 RFC 6229
