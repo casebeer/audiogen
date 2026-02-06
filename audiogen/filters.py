@@ -8,13 +8,13 @@ import math
 import itertools
 import collections
 
-import util
-import sampler
+import audiogen.util as util
+import audiogen.sampler as sampler
 
 TWO_PI = 2 * math.pi
 
 def iir(A, B):
-	# Returns an IIR filter function based on the 
+	# Returns an IIR filter function based on the
 	# provided input and output coefficient arrays
 	#
 	def filter(in_):
@@ -77,4 +77,4 @@ def band_stop(center, bandwidth):
 	b2 = -R ** 2
 
 	return iir([a0, a1, a2], [b1, b2])
-	
+

@@ -2,11 +2,11 @@
 import logging
 logger = logging.getLogger(__name__)
 
-import util as util
+import audiogen.util as util
 
 # Arcfour PRNG as a fast source of repeatable randomish numbers; totally unnecessary here, but simple.
 def arcfour(key, csbN=1):
-	'''Return a generator for the ARCFOUR/RC4 pseudorandom keystream for the 
+	'''Return a generator for the ARCFOUR/RC4 pseudorandom keystream for the
 	   key provided. Keys should be byte strings or sequences of ints.'''
 	if isinstance(key, str):
 		key = [ord(c) for c in key]
@@ -24,7 +24,7 @@ def arcfour(key, csbN=1):
 		yield s[(s[i] + s[j]) & 255]
 
 def arcfour_drop(key, n=3072):
-	'''Return a generator for the RC4-drop pseudorandom keystream given by 
+	'''Return a generator for the RC4-drop pseudorandom keystream given by
 	   the key and number of bytes to drop passed as arguments. Dropped bytes
 	   default to the more conservative 3072, NOT the SCAN default of 768.'''
 	af = arcfour(key)

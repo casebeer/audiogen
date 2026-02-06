@@ -1,7 +1,7 @@
 # coding=utf8
 
 '''
-Assorted generators 
+Assorted generators
 '''
 
 import logging
@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 import math
 import itertools
 
-import util
-import sampler
-import filters
+import audiogen.util as util
+import audiogen.sampler as sampler
+import audiogen.filters as filters
 
 TWO_PI = 2 * math.pi
 
@@ -92,7 +92,7 @@ class DDS(object):
 
 def dds(freqHz=440, phaseOffsetRad=0):
     return DDS.dds(freqHz, phaseOffsetRad)
-    
+
 def tone(frequency=440, phase_offset=0, min_=-1, max_=1, frame_rate=None):
     return DDS.dds(frequency)
 
@@ -116,19 +116,19 @@ def tone(frequency=440, phase_offset=0, min_=-1, max_=1, frame_rate=None):
                 elif phase_index < 0:
                     phase_index += period
                 yield phase_index
-        
+
         #frequency                        # 1 / seconds
         freqNorm = frequencyHz / frame_rate # 1 / samples
         period = 1. / frequency           # seconds
         periodNorm = 1. / freqNorm        # samples
 
-        # every periodNorm samples we want sin(sample) to cycle; 
+        # every periodNorm samples we want sin(sample) to cycle;
         # i.e. sin(periodNorm * cyclesPerSample) = sin(2 * PI)
 
         cyclesPerSample = 2 * math.pi / periodNorm # 1 / samples
 
         samples = [math.sin(i * cyclesPerSample) for i in range(int(periodNorm * 2))]
-        
+
         #samples = [math.sin(i * time_scale) for i in phase_indexes()]
         #samples = [math.sin(i * time_scale) for i in range(int(periodf * 1))]
         #samples = [math.sin(i * samples_per_second) for i in range(int(periodf * 1))]
@@ -172,4 +172,3 @@ def silence(seconds=None):
 	else:
 		while True:
 			yield 0
-
