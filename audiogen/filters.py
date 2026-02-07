@@ -18,12 +18,13 @@ def iir(A, B):
 	# provided input and output coefficient arrays
 	#
 	def filter(in_):
+		input_ = iter(in_)
 		# use deques as ring buffers
 		outputs = collections.deque([0] * max(len(B), 1), maxlen=max(len(B), 1))
 		inputs =  collections.deque([0] * len(A), maxlen=len(A))
 		try:
 			while True:
-				inputs.appendleft(next(in_))
+				inputs.appendleft(next(input_))
 				y = sum(a * i for a, i in zip(A, inputs)) \
 					+ sum(b * o for b, o in zip(B, outputs))
 				yield outputs.pop()
@@ -77,4 +78,3 @@ def band_stop(center, bandwidth):
 	b2 = -R ** 2
 
 	return iir([a0, a1, a2], [b1, b2])
-
