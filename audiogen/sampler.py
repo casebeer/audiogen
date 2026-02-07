@@ -211,6 +211,16 @@ def _pyaudio_callback(wavgen):
 		return str(data), pyaudio.paContinue
 	return cb
 
+'''
+Generate and discard all samples provided.
+
+For testing.
+'''
+def discard(channels):
+	wavgen = wav_samples(channels)
+	for chunk in wavgen:
+		pass
+
 def play(channels, blocking=True, raw_samples=False):
 	'''
 	Play the contents of the generator using PyAudio
