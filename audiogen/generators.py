@@ -19,17 +19,18 @@ TWO_PI = 2 * math.pi
 ## Audio sample generators
 
 bpf_cache = {}
-def beep(frequency=440, seconds=0.25, bpf=True):
-    if bpf:
+def beep(frequency=440, seconds=0.25, use_bpf=True):
+    if use_bpf:
         if frequency not in bpf_cache:
             bandwidth = max(frequency // 2 ** 6, 128)
-            logger.debug('Creating {} Hz BPF centered at {} Hz'.format(bandwidth, frequency))
+            logger.debug('Creating {} Hz BPF centered at {} Hz for beep'.format(bandwidth, frequency))
             bpf_cache[frequency] = filters.band_pass(frequency, bandwidth)
+        bpf = bpf_cache[frequency]
         # lower volume 0.25 dB (~95% full scale) so BPF ripple doesn't exceed 0 dbFS
-        for sample in bpf_cache[frequency](itertools.chain(
-            util.crop(util.volume(tone(frequency), -0.25), seconds=(seconds - 0.01)),
-            silence(0.01)
-            )):
+        for sample in bpf(bpf(itertools.chain(
+            util.crop(util.volume(tone(frequency), -0.25), seconds=(seconds - 0.03)),
+            silence(0.03)
+            ))):
             yield sample
     else:
         #for sample in util.crop_with_fades(tone(frequency), seconds=seconds):
