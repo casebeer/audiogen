@@ -2,6 +2,8 @@
 import logging
 logger = logging.getLogger(__name__)
 
+from functools import reduce
+
 import itertools
 import struct
 import math
