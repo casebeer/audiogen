@@ -22,6 +22,13 @@ setup(
 	install_requires=required_modules,
 	extras_require=extras_require,
 
+	entry_points={
+		"console_scripts": [
+			"tone = audiogen.scripts.tone:main",
+			"dtmf = audiogen.scripts.dtmf:main",
+		]
+	},
+
 	tests_require=["nose"],
 	test_suite="nose.collector",
 
@@ -34,4 +41,3 @@ setup(
 		"Topic :: Multimedia :: Sound/Audio",
 	]
 )
-
