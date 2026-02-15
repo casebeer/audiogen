@@ -142,16 +142,17 @@ def hard_clip(generator, min=-1, max=1):
 
 def vector_reduce(op, generators):
 	while True:
-		yield reduce(op, [next(g) for g in generators])
-def vector_reduce1(op, generators):
-	while True:
-		yield reduce(op, [next(g) for g in generators])
+		try:
+			samples = [next(g) for g in generators]
+		except StopIteration:
+			return
+		yield reduce(op, samples)
 
 def sum(*generators):
 	return vector_reduce(lambda a,b: a + b, generators)
 
 def multiply(*generators):
-	return vector_reduce1(lambda a,b: a * b, generators)
+	return vector_reduce(lambda a,b: a * b, generators)
 
 class Constant(object):
     def __init__(self, value):
