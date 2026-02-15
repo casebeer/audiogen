@@ -78,3 +78,76 @@ def band_stop(center, bandwidth):
 	b2 = -R ** 2
 
 	return iir([a0, a1, a2], [b1, b2])
+
+def low_pass(cutoff: float):
+	'''
+	Single pole low pass IIR filter
+
+	`cutoff` is cutoff frequency in Hz.
+
+	http://www.dspguide.com/ch19/2.htm
+	'''
+	# normalized cutoff frequency
+	fc = float(cutoff) / sampler.FRAME_RATE
+	#rc_time_constant_samples = float(rc_time_constant) * sampler.FRAME_RATE
+
+	# determine decay coefficient x from cutoff frequency
+	x = math.exp(-TWO_PI * fc)
+
+	# determine decay coefficient x from RC time constant
+	#x = math.exp(-1.0 / rc_time_constant_samples)
+
+	a0 = 1 - x
+	b1 = x
+	return iir([a0], [b1])
+
+def low_pass_four_stage(cutoff: float):
+	'''
+	Four stage low pass IIR filter
+
+	Equivalent to cascading single pole LPF four times.
+
+	`cutoff` is cutoff frequency in Hz.
+
+	http://www.dspguide.com/ch19/2.htm
+	'''
+
+	# normalized cutoff frequency
+	fc = float(cutoff) / sampler.FRAME_RATE
+	#rc_time_constant_samples = float(rc_time_constant) * sampler.FRAME_RATE
+
+	# determine decay coefficient x from cutoff frequency
+	x = math.exp(-TWO_PI * fc)
+
+	# determine decay coefficient x from RC time constant
+	#x = math.exp(-1.0 / rc_time_constant_samples)
+
+	a0 = math.pow(1 - x, 4)
+	b1 = 4 * x
+	b2 = -6 * math.pow(x, 2)
+	b3 = 4 * math.pow(x, 3)
+	b4 = -1 * math.pow(x, 4)
+	return iir([a0], [b1, b2, b3, b4])
+
+def high_pass(cutoff: float):
+	'''
+	High pass IIR filter
+
+	`cutoff` is cutoff frequency in Hz.
+
+	http://www.dspguide.com/ch19/2.htm
+	'''
+	# normalized cutoff frequency
+	fc = float(cutoff) / sampler.FRAME_RATE
+	#rc_time_constant_samples = float(rc_time_constant) * sampler.FRAME_RATE
+
+	# determine decay coefficient x from cutoff frequency
+	x = math.exp(-TWO_PI * fc)
+
+	# determine decay coefficient x from RC time constant
+	#x = math.exp(-1.0 / rc_time_constant_samples)
+
+	a0 = (1 + x) / 2.
+	a1 = -(1 + x) / 2.
+	b1 = x
+	return iir([a0, a1], [b1])
