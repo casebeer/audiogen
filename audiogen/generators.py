@@ -33,20 +33,22 @@ def beep(frequency=440, seconds=0.25, use_bpf=True):
     '''
     if use_bpf:
         if frequency not in bpf_cache:
-            bandwidth = max(frequency // 2 ** 6, 128)
-            logger.debug('Creating {} Hz BPF centered at {} Hz for beep'.format(bandwidth, frequency))
-            bpf_cache[frequency] = filters.band_pass(frequency, bandwidth)
+            bandwidthHz = max(frequency // 2 ** 6, 128)
+            logger.debug('Creating {} Hz BPF centered at {} Hz for beep'.format(bandwidthHz, frequency))
+            bpf_cache[frequency] = filters.band_pass(frequency, bandwidthHz)
         bpf = bpf_cache[frequency]
+
         # lower volume 0.25 dB (~95% full scale) so BPF ripple doesn't exceed 0 dbFS
-        for sample in bpf(bpf(itertools.chain(
-            util.crop(util.volume(tone(frequency), -0.25), seconds=(seconds - 0.03)),
-            silence(0.03)
-            ))):
-            yield sample
+        # replace the final 0.03 seconds of the beep with silence so the bpf has room
+        # to operate.
+        samples = bpf(bpf(
+            itertools.chain(
+                util.crop(util.volume(tone(frequency), -0.25), seconds=(seconds - 0.03)),
+                silence(0.03)
+            )))
     else:
-        #for sample in util.crop_with_fades(tone(frequency), seconds=seconds):
-        for sample in util.crop(tone(frequency), seconds=seconds):
-            yield sample
+        samples = util.crop(util.volume(tone(frequency), -0.25), seconds=seconds)
+    return samples
 
 
 class DDS(object):
