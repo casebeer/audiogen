@@ -170,19 +170,19 @@ def tone(frequency=440, phase_offset=0, min_=-1, max_=1, frame_rate=None):
     return util.normalize(gen, -1, 1, min_, max_)
 
 def synth(freq, angles):
-	if isinstance(angles, (int, float)):
-		# argument was just the end angle
-		angles = [0, angles]
-	gen = tone(freq)
-	loop = list(itertools.islice(gen, (sampler.FRAME_RATE / freq) * (angles[1] / (2.0 * math.pi))))[int((sampler.FRAME_RATE / freq) * (angles[0] / (2.0 * math.pi))):]
-	while True:
-		for sample in loop:
-			yield sample
+    if isinstance(angles, (int, float)):
+        # argument was just the end angle
+        angles = [0, angles]
+    gen = tone(freq)
+    loop = list(itertools.islice(gen, (sampler.FRAME_RATE / freq) * (angles[1] / (2.0 * math.pi))))[int((sampler.FRAME_RATE / freq) * (angles[0] / (2.0 * math.pi))):]
+    while True:
+        for sample in loop:
+            yield sample
 
 def silence(seconds=None):
-	if seconds != None:
-		for i in range(int(sampler.FRAME_RATE * seconds)):
-			yield 0
-	else:
-		while True:
-			yield 0
+    if seconds != None:
+        for i in range(int(sampler.FRAME_RATE * seconds)):
+            yield 0
+    else:
+        while True:
+            yield 0
