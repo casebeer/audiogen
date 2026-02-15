@@ -20,6 +20,17 @@ TWO_PI = 2 * math.pi
 
 bpf_cache = {}
 def beep(frequency=440, seconds=0.25, use_bpf=True):
+    '''
+    Generate a beep
+
+    Optionally accepts `frequency` in Hertz, duration in seconds (`seconds`), and whether
+    to apply a band pass filter (`use_bpf`).
+
+    Defaults to a bandpass filtered 0.25 second 440 Hz tone.
+
+    n.b. By default, use_bpf=True, which causes the output to be shortened and bandpass
+         filtered to avoid high bandwidth clicks from harsh volume transitions.
+    '''
     if use_bpf:
         if frequency not in bpf_cache:
             bandwidth = max(frequency // 2 ** 6, 128)
