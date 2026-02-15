@@ -157,27 +157,12 @@ def multiply(*generators):
 class Constant(object):
     def __init__(self, value):
         self.value = value
-    def send(self, ignored_arg):
-        return self.value
-    def throw(self, type=None, value=None, traceback=None):
-        raise StopIteration
     def __iter__(self):
         return self
-    def next(self):
-        return next(self)
     def __next__(self):
-        return self.send(None)
-    def close(self):
-        """Raise GeneratorExit inside generator.
-        """
-        try:
-            self.throw(GeneratorExit)
-        except (GeneratorExit, StopIteration):
-            pass
-        else:
-            raise RuntimeError("generator ignored GeneratorExit")
+        return self.value
     def __repr__(self):
-        return 'Constant({})'.format(self.value)
+        return f"Constant({self.value})"
 
 def constantf(value):
 	while True:
@@ -198,18 +183,21 @@ def volume(gen, dB=0):
 		# not a generator
 		scale = 10 ** (dB / 20.)
 	else:
-		def scale_gen():
-			while True:
-				yield 10 ** (next(dB) / 20.)
-		scale = scale_gen()
+		def linearScaleGen():
+			for dbValue in dB:
+				yield 10 ** (dBValue / 20.)
+		scale = linearScaleGen() # call func to get generator
 	return envelope(gen, scale)
 
 def clip(gen, limit):
 	if not hasattr(limit, "__next__"):
 		limit = constant(limit)
 	while True:
-		sample = next(gen)
-		current_limit = next(limit)
+		try:
+			sample = next(gen)
+			current_limit = next(limit)
+		except StopIteration:
+			return
 		if math.fabs(sample) > current_limit:
 			yield current_limit * (math.fabs(sample) / sample if sample != 0 else 0)
 		else:
@@ -219,8 +207,11 @@ def envelope(gen, volume):
 	if not hasattr(volume, "__next__"):
 		volume = constant(volume)
 	while True:
-		sample = next(gen)
-		current_volume = next(volume)
+		try:
+			sample = next(gen)
+			current_volume = next(volume)
+		except StopIteration:
+			return
 		yield current_volume * sample
 
 def loop(*gens):
