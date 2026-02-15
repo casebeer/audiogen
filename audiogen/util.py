@@ -148,7 +148,7 @@ def vector_reduce(op, generators):
 			return
 		yield reduce(op, samples)
 
-def sum(*generators):
+def sum_generators(*generators):
 	return vector_reduce(lambda a,b: a + b, generators)
 
 def multiply(*generators):
@@ -272,16 +272,42 @@ def mixer(inputs, mix=None):
 	    	)
 	'''
 	if mix == None:
-		# by default, mix all inputs down to one channel
+		# by default, mix all inputs down to one channel, dividing each input volume equally
+		# n.b. since we're referencing the same constant() generator inputCount times,
+		#	  it will run inputCount times faster than the other sample generators.
+		#	  This should be fine since it's just outputting a constant, but would *not*
+		#	  work for any other pattern. Otherwise, use itertools.tee() to properly
+		#	  duplicate the generator.
 		mix = ([constant(1.0 / len(inputs))] * len(inputs),)
+		#mix = (itertools.tee(constant(1.0 / len(inputs)), len(inputs)),)
 
-	duped_inputs = zip(*[itertools.tee(i, len(mix)) for i in inputs])
+	outputChannelCount = len(mix)
 
-# second zip is backwards
-	return [\
-			sum(*[multiply(m,i) for m,i in zip(channel_mix, channel_inputs)])\
-			for channel_mix, channel_inputs in zip(mix, duped_inputs) \
-			]
+	# Create a copy of the inputs for each of the output channels
+	# list of tuples, len inputChannelCount. Each tuple has outputChannelCount copies of the input.
+	inputCopies = [itertools.tee(i, outputChannelCount) for i in inputs]
+
+	# For every output channel, a (copied) tuple of all inputs
+	outputSources = zip(*inputCopies)
+
+	# a pair of (inputCount mixes, inputCount sources) per output channel
+	outputData = zip(mix, outputSources)
+
+	outputChannels = []
+	# for each output channel
+	for mixes, inputs in outputData:
+		# inputCount pairs of (mixGenerator, inputGenerator)
+		outputChannelData = zip(mixes, inputs)
+
+		# list of inputCount volume-corrected audio generators
+		normalizedInputs = [ multiply(mixGen, inputGen) for mixGen, inputGen in outputChannelData ]
+
+		# sum together each of the normalized inputs to form the output for this channel
+		summedInputs = sum_generators(*normalizedInputs)
+
+		outputChannels.append(summedInputs)
+
+	return outputChannels
 
 def channelize(gen, channels):
 	'''
