@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
+import os
 
 required_modules = []
 extras_require = {
     'soundcard_playback': ['pyaudio'],
 }
 
-with open("README.rst", "rb") as f:
-    readme = f.read().decode('utf8')
+with open(os.path.join(os.path.dirname(__file__), "README.rst"), encoding='utf-8') as f:
+    readme = f.read()
+
 
 setup(
     name="audiogen",
