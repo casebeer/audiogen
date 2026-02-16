@@ -5,7 +5,6 @@ Assorted generators
 '''
 
 import logging
-logger = logging.getLogger(__name__)
 
 import math
 import itertools
@@ -14,27 +13,33 @@ import audiogen.util as util
 import audiogen.sampler as sampler
 import audiogen.filters as filters
 
+logger = logging.getLogger(__name__)
+
 TWO_PI = 2 * math.pi
 
-## Audio sample generators
+# Audio sample generators
 
 bpf_cache = {}
+
+
 def beep(frequency=440, seconds=0.25, use_bpf=True):
     '''
     Generate a beep
 
-    Optionally accepts `frequency` in Hertz, duration in seconds (`seconds`), and whether
-    to apply a band pass filter (`use_bpf`).
+    Optionally accepts `frequency` in Hertz, duration in seconds (`seconds`),
+    and whether to apply a band pass filter (`use_bpf`).
 
     Defaults to a bandpass filtered 0.25 second 440 Hz tone.
 
-    n.b. By default, use_bpf=True, which causes the output to be shortened and bandpass
-         filtered to avoid high bandwidth clicks from harsh volume transitions.
+    n.b. By default, use_bpf=True, which causes the output to be shortened
+         and bandpass filtered to avoid high bandwidth clicks from harsh
+         volume transitions.
     '''
     if use_bpf:
         if frequency not in bpf_cache:
             bandwidthHz = max(frequency // 2 ** 6, 128)
-            logger.debug('Creating {} Hz BPF centered at {} Hz for beep'.format(bandwidthHz, frequency))
+            logger.debug(
+                f"Creating {bandwidthHz} Hz BPF centered at {frequency} Hz for beep")
             bpf_cache[frequency] = filters.band_pass(frequency, bandwidthHz)
         bpf = bpf_cache[frequency]
 
@@ -64,19 +69,20 @@ class DDS(object):
         import sys
         phasePerLutItem = 2 * math.pi / 2 ** cls.lutBits
         start = time.time()
-        cls.lut = [ math.sin(i * phasePerLutItem) for i in range(2 ** cls.lutBits) ]
+        cls.lut = [math.sin(i * phasePerLutItem) for i in range(2 ** cls.lutBits)]
         generationTime = time.time() - start
         logger.debug('[dds] Generated DDS LUT in {} seconds'.format(generationTime))
         logger.debug('[dds] {} bit phase accumulator, {} bit DDS LUT'.format(
             cls.accumulatorBits,
             cls.lutBits,
         ))
-        logger.debug('[dds] {} bit ({:,} entry) LUT takes {:,} bytes of memory ({} bits / entry)'.format(
-            cls.lutBits,
-            2 ** cls.lutBits,
-            sys.getsizeof(cls.lut),
-            sys.getsizeof(cls.lut) / 2 ** cls.lutBits * 8,
-        ))
+        logger.debug(
+            '[dds] {} bit ({:,} entry) LUT takes {:,} bytes of memory ({} bits / entry)'.format(
+                cls.lutBits,
+                2 ** cls.lutBits,
+                sys.getsizeof(cls.lut),
+                sys.getsizeof(cls.lut) / 2 ** cls.lutBits * 8,
+            ))
 
     @classmethod
     def dds(cls, freqHz, phaseOffsetRad=0):
@@ -85,8 +91,8 @@ class DDS(object):
             cls.generateLut()
         accumulatorSize = 2 ** cls.accumulatorBits
 
-        freqNorm = float(freqHz) / sampler.FRAME_RATE # 1 / samples
-        deltaPhase = int(round(freqNorm * accumulatorSize)) # accumulatorPhases / sample
+        freqNorm = float(freqHz) / sampler.FRAME_RATE  # 1 / samples
+        deltaPhase = int(round(freqNorm * accumulatorSize))  # accumulatorPhases / sample
 
         logger.debug('[dds][acc] frequency resolution ≈ {} Hz'.format(
             round(float(sampler.FRAME_RATE) / accumulatorSize, 5)))
@@ -94,7 +100,8 @@ class DDS(object):
             round(float(accumulatorSize) / deltaPhase / sampler.FRAME_RATE, 5),
             round(float(deltaPhase) / accumulatorSize * sampler.FRAME_RATE, 5),
             ))
-        logger.debug('[dds][lut] phase truncation spurs ~ {} dB below fundamental'.format(6.08 * cls.lutBits))
+        logger.debug(
+            '[dds][lut] phase truncation spurs ~ {6.08 * cls.lutBits} dB below fundamental')
 
         phaseAccumulator = int(0 + phaseOffsetRad / freqNorm) % accumulatorSize
         truncateBits = cls.accumulatorBits - cls.lutBits
@@ -104,26 +111,29 @@ class DDS(object):
                 phaseAccumulator -= accumulatorSize
             yield cls.lut[phaseAccumulator >> truncateBits]
 
+
 def dds(freqHz=440, phaseOffsetRad=0):
     return DDS.dds(freqHz, phaseOffsetRad)
+
 
 def tone(frequency=440, phase_offset=0, min_=-1, max_=1, frame_rate=None):
     return DDS.dds(frequency)
 
     if frame_rate is None:
         frame_rate = sampler.FRAME_RATE
+
     def fixed_tone(frequency):
         frequencyHz = float(frequency)
         periodf = float(frame_rate) / frequency
         period = int(frame_rate / frequency)
-        time_scale = 2 * math.pi / periodf # period * scale = 2 * pi
+        time_scale = 2 * math.pi / periodf  # period * scale = 2 * pi
         # precompute fixed tone samples # TODO: what about phase glitches at end?
 
         logger.debug('Periodf is {}'.format(periodf))
 
         def phase_indexes():
             phase_index_offset = int(phase_offset / time_scale)
-            for i in xrange(period * 1):
+            for i in range(period * 1):
                 phase_index = i + phase_index_offset
                 if phase_index >= period:
                     phase_index -= period
@@ -131,21 +141,20 @@ def tone(frequency=440, phase_offset=0, min_=-1, max_=1, frame_rate=None):
                     phase_index += period
                 yield phase_index
 
-        #frequency                        # 1 / seconds
-        freqNorm = frequencyHz / frame_rate # 1 / samples
-        period = 1. / frequency           # seconds
-        periodNorm = 1. / freqNorm        # samples
+        freqNorm = frequencyHz / frame_rate  # 1 / samples
+        period = 1. / frequency              # seconds
+        periodNorm = 1. / freqNorm           # samples
 
         # every periodNorm samples we want sin(sample) to cycle;
         # i.e. sin(periodNorm * cyclesPerSample) = sin(2 * PI)
 
-        cyclesPerSample = 2 * math.pi / periodNorm # 1 / samples
+        cyclesPerSample = 2 * math.pi / periodNorm  # 1 / samples
 
         samples = [math.sin(i * cyclesPerSample) for i in range(int(periodNorm * 2))]
 
-        #samples = [math.sin(i * time_scale) for i in phase_indexes()]
-        #samples = [math.sin(i * time_scale) for i in range(int(periodf * 1))]
-        #samples = [math.sin(i * samples_per_second) for i in range(int(periodf * 1))]
+        # samples = [math.sin(i * time_scale) for i in phase_indexes()]
+        # samples = [math.sin(i * time_scale) for i in range(int(periodf * 1))]
+        # samples = [math.sin(i * samples_per_second) for i in range(int(periodf * 1))]
 
         return itertools.cycle(samples)
 
@@ -169,18 +178,22 @@ def tone(frequency=440, phase_offset=0, min_=-1, max_=1, frame_rate=None):
         gen = variable_tone(frequency)
     return util.normalize(gen, -1, 1, min_, max_)
 
+
 def synth(freq, angles):
     if isinstance(angles, (int, float)):
         # argument was just the end angle
         angles = [0, angles]
     gen = tone(freq)
-    loop = list(itertools.islice(gen, (sampler.FRAME_RATE / freq) * (angles[1] / (2.0 * math.pi))))[int((sampler.FRAME_RATE / freq) * (angles[0] / (2.0 * math.pi))):]
+    loop = list(itertools.islice(
+            gen, (sampler.FRAME_RATE / freq) * (angles[1] / (2.0 * math.pi))
+           ))[int((sampler.FRAME_RATE / freq) * (angles[0] / (2.0 * math.pi))):]
     while True:
         for sample in loop:
             yield sample
 
+
 def silence(seconds=None):
-    if seconds != None:
+    if seconds is not None:
         for i in range(int(sampler.FRAME_RATE * seconds)):
             yield 0
     else:

@@ -1,18 +1,15 @@
 
 import logging
-logger = logging.getLogger(__name__)
 
 from functools import reduce
 
 import itertools
-import struct
 import math
 
-from audiogen.noise import white_noise
-from audiogen.noise import white_noise_samples
-from audiogen.noise import red_noise
-
 import audiogen.sampler as sampler
+
+logger = logging.getLogger(__name__)
+
 
 def crop(gens, seconds=5, cropper=None):
     '''
@@ -26,11 +23,13 @@ def crop(gens, seconds=5, cropper=None):
         # single generator
         gens = (gens,)
 
-    if cropper == None:
-        cropper = lambda gen: itertools.islice(gen, 0, int(seconds * sampler.FRAME_RATE))
+    if cropper is None:
+        def cropper(gen):
+            return itertools.islice(gen, 0, int(seconds * sampler.FRAME_RATE))
 
     cropped = [cropper(gen) for gen in gens]
     return cropped[0] if len(cropped) == 1 else cropped
+
 
 def crop_with_fades(gen, seconds, fade_in=0.01, fade_out=0.01):
     source = iter(gen)
@@ -44,11 +43,11 @@ def crop_with_fades(gen, seconds, fade_in=0.01, fade_out=0.01):
     end = itertools.islice(source, 0, fade_out_samples)
 
     def linear_fade(samples, direction="in"):
-        for i in xrange(samples):
+        for i in range(samples):
             if direction == "in":
-                yield ( 1.0 / samples ) * i + 0
+                yield (1.0 / samples) * i + 0
             elif direction == "out":
-                yield ( -1.0 / samples ) * i + 1
+                yield (-1.0 / samples) * i + 1
             else:
                 raise Exception('Fade direction must be "in" or "out"')
         while True:
@@ -63,6 +62,7 @@ def crop_with_fades(gen, seconds, fade_in=0.01, fade_out=0.01):
     for sample in multiply(end, linear_fade(fade_out_samples, direction="out")):
         yield sample
 
+
 def crop_with_fade_out(gen, seconds, fade=.01):
     source = iter(gen)
 
@@ -73,7 +73,7 @@ def crop_with_fade_out(gen, seconds, fade=.01):
     end = itertools.islice(source, 0, fade_samples)
 
     def fader():
-        for i in xrange(fade_samples):
+        for i in range(fade_samples):
             yield 1 - (float(i) / fade_samples) ** 1
         while True:
             yield 0
@@ -111,14 +111,14 @@ def crop_at_zero_crossing(gen, seconds=5, error=0.1):
     end = list(end)
 
     # find min by sorting buffer samples, first by abs of sample, then by distance from optimal
-    best = sorted(enumerate(end), key=lambda x: (math.fabs(x[1]),abs((buffer_length/2)-x[0])))
+    best = sorted(enumerate(end), key=lambda x: (math.fabs(x[1]), abs((buffer_length/2) - x[0])))
     print(best[:10])
     print(best[0][0])
 
     # todo: better logic when we don't have a perfect zero crossing
-    #if best[0][1] != 0:
-    #    # we don't have a perfect zero crossing, so let's look for best fit?
-    #    pass
+    # if best[0][1] != 0:
+    #     # we don't have a perfect zero crossing, so let's look for best fit?
+    #     pass
 
     # crop samples at index of best zero crossing
     for sample in end[:best[0][0] + 1]:
@@ -128,6 +128,7 @@ def crop_at_zero_crossing(gen, seconds=5, error=0.1):
 def normalize(generator, min_in=0, max_in=256, min_out=-1, max_out=1):
     scale = float(max_out - min_out) / (max_in - min_in)
     return ((sample - min_in) * scale + min_out for sample in generator)
+
 
 def hard_clip(generator, min=-1, max=1):
     for sample in generator:
@@ -140,6 +141,7 @@ def hard_clip(generator, min=-1, max=1):
         else:
             yield sample
 
+
 def vector_reduce(op, generators):
     while True:
         try:
@@ -148,34 +150,38 @@ def vector_reduce(op, generators):
             return
         yield reduce(op, samples)
 
+
 def sum_generators(*generators):
-    return vector_reduce(lambda a,b: a + b, generators)
+    return vector_reduce(lambda a, b: a + b, generators)
+
 
 def multiply(*generators):
-    return vector_reduce(lambda a,b: a * b, generators)
+    return vector_reduce(lambda a, b: a * b, generators)
+
 
 class Constant(object):
     def __init__(self, value):
         self.value = value
+
     def __iter__(self):
         return self
+
     def __next__(self):
         return self.value
+
     def __repr__(self):
         return f"Constant({self.value})"
+
+
+constant = Constant
+
 
 def constantf(value):
     while True:
         yield value
-constant = Constant
 
-#class AudioGen(object):
-#    def __init__(self, function):
-#        self.function = function
-#    def __call__(self, *args, **kwargs):
-#        ret = yield from self.function(*args, **kwargs)
+# Filters
 
-# filters
 
 def volume(gen, dB=0):
     '''Change the volume of gen by dB decibles'''
@@ -184,10 +190,11 @@ def volume(gen, dB=0):
         scale = 10 ** (dB / 20.)
     else:
         def linearScaleGen():
-            for dbValue in dB:
+            for dBValue in dB:
                 yield 10 ** (dBValue / 20.)
-        scale = linearScaleGen() # call func to get generator
+        scale = linearScaleGen()  # call func to get generator
     return envelope(gen, scale)
+
 
 def clip(gen, limit):
     if not hasattr(limit, "__next__"):
@@ -203,6 +210,7 @@ def clip(gen, limit):
         else:
             yield sample
 
+
 def envelope(gen, volume):
     if not hasattr(volume, "__next__"):
         volume = constant(volume)
@@ -214,12 +222,14 @@ def envelope(gen, volume):
             return
         yield current_volume * sample
 
+
 def loop(*gens):
     loops = [list(gen) for gen in gens]
     while True:
         for loop in loops:
             for sample in loop:
                 yield sample
+
 
 def mixer(inputs, mix=None):
     '''
@@ -262,7 +272,7 @@ def mixer(inputs, mix=None):
             )
             )
     '''
-    if mix == None:
+    if mix is None:
         # by default, mix all inputs down to one channel, dividing each input volume equally
         # n.b. since we're referencing the same constant() generator inputCount times,
         #      it will run inputCount times faster than the other sample generators.
@@ -270,7 +280,7 @@ def mixer(inputs, mix=None):
         #      work for any other pattern. Otherwise, use itertools.tee() to properly
         #      duplicate the generator.
         mix = ([constant(1.0 / len(inputs))] * len(inputs),)
-        #mix = (itertools.tee(constant(1.0 / len(inputs)), len(inputs)),)
+        # mix = (itertools.tee(constant(1.0 / len(inputs)), len(inputs)),)
 
     outputChannelCount = len(mix)
 
@@ -291,7 +301,7 @@ def mixer(inputs, mix=None):
         outputChannelData = zip(mixes, inputs)
 
         # list of inputCount volume-corrected audio generators
-        normalizedInputs = [ multiply(mixGen, inputGen) for mixGen, inputGen in outputChannelData ]
+        normalizedInputs = [multiply(mixGen, inputGen) for mixGen, inputGen in outputChannelData]
 
         # sum together each of the normalized inputs to form the output for this channel
         summedInputs = sum_generators(*normalizedInputs)
@@ -299,6 +309,7 @@ def mixer(inputs, mix=None):
         outputChannels.append(summedInputs)
 
     return outputChannels
+
 
 def channelize(gen, channels):
     '''
@@ -314,7 +325,9 @@ def channelize(gen, channels):
     def pick(g, channel):
         for samples in g:
             yield samples[channel]
-    return [pick(gen_copy, channel) for channel, gen_copy in enumerate(itertools.tee(gen, channels))]
+    return [pick(gen_copy, channel)
+            for channel, gen_copy in enumerate(itertools.tee(gen, channels))]
+
 
 def play(filename):
     import subprocess

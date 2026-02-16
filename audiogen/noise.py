@@ -1,10 +1,14 @@
 
 import logging
-logger = logging.getLogger(__name__)
 
 import audiogen.util as util
 
-# Arcfour PRNG as a fast source of repeatable randomish numbers; totally unnecessary here, but simple.
+logger = logging.getLogger(__name__)
+
+# Arcfour PRNG as a fast source of repeatable randomish numbers;
+# totally unnecessary here, but simple.
+
+
 def arcfour(key, csbN=1):
     '''Return a generator for the ARCFOUR/RC4 pseudorandom keystream for the
        key provided. Keys should be byte strings or sequences of ints.'''
@@ -23,6 +27,7 @@ def arcfour(key, csbN=1):
         s[i], s[j] = s[j], s[i]
         yield s[(s[i] + s[j]) & 255]
 
+
 def arcfour_drop(key, n=3072):
     '''Return a generator for the RC4-drop pseudorandom keystream given by
        the key and number of bytes to drop passed as arguments. Dropped bytes
@@ -30,10 +35,12 @@ def arcfour_drop(key, n=3072):
     af = arcfour(key)
     [next(af) for c in range(n)]
     return af
+
+
 mark_4 = arcfour_drop
 
 
-def white_noise(key=(1,2,3,4,5)):
+def white_noise(key=(1, 2, 3, 4, 5)):
     def prng(key):
         af = arcfour(key)
         while True:
@@ -42,24 +49,29 @@ def white_noise(key=(1,2,3,4,5)):
     # normalize to floats in [-1, 1]
     return util.normalize(prng(key), 0, 2**16)
 
-'''Provides 16 bit raw integer samples as strs directly from random number generator'''
-def white_noise_samples(key=(1,2,3,4,5)):
+
+def white_noise_samples(key=(1, 2, 3, 4, 5)):
+    '''Provides 16 bit raw integer samples as strs directly from random number generator'''
     af = arcfour(key)
     while True:
         # extract 16 bits of randomness per sample
         # since chr() produces strs, + concatenates the two bytes
         yield chr(next(af)) + chr(next(af))
 
-def red_noise(key=(1,2,3,4,5)):
+
+def red_noise(key=(1, 2, 3, 4, 5)):
     def random_walk(key, dynamic_range):
         af = arcfour(key)
-        max_ = dynamic_range / 2
+        # max_ = dynamic_range / 2
         sample = 0
         while True:
-            #step = next(af) - 128
-            step = next(af) / (256.0 / 2 / 20) - 1 # Normalize to 5% of [-1, 1] range and center the step at zero
+            # step = next(af) - 128
+
+            # Normalize to 5% of [-1, 1] range and center the step at zero
+            step = next(af) / (256.0 / 2 / 20) - 1
+
             # Skew the step probability to encourage the sample back towards DC
-            #step *= (max_ * max_ - sample * sample) ** 0.5 / max_ if step * sample > 0 else 1
+            # step *= (max_ * max_ - sample * sample) ** 0.5 / max_ if step * sample > 0 else 1
             step *= (1 - sample * sample) ** 0.5 if step * sample > 0 else 1
             sample += step
 
@@ -74,10 +86,11 @@ def red_noise(key=(1,2,3,4,5)):
     # Since we're generating random values in [0, 255], set the dynamic range to make the
     # max step size 5% of the dynamic range
     dynamic_range = 256 * 20
-    min_, max_ = -dynamic_range / 2, dynamic_range / 2
+    # min_, max_ = -dynamic_range / 2, dynamic_range / 2
     # normalize to floats in [-1, 1]
-    #return util.normalize(random_walk(key, dynamic_range), min_, max_)
+    # return util.normalize(random_walk(key, dynamic_range), min_, max_)
     return random_walk(key, dynamic_range)
+
 
 '''
 RFC 6229

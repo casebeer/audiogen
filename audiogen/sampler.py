@@ -1,6 +1,5 @@
 
 import logging
-logger = logging.getLogger(__name__)
 
 import struct
 import wave
@@ -11,8 +10,7 @@ try:
     pyaudio_loaded = True
 except ImportError:
     pyaudio_loaded = False
-import time
-import sys
+
 import errno
 import contextlib
 
@@ -21,27 +19,33 @@ from io import StringIO
 from .util import hard_clip
 from .util import normalize
 
-### Constants
+logger = logging.getLogger(__name__)
+
+# Constants
 
 # frame rate in Hertz
-FRAME_RATE=44100
+FRAME_RATE = 44100
 
 # sample width in bytes, 2 = 16 bit
-SAMPLE_WIDTH=2
-COMPRESSION_TYPE='NONE'
-COMPRESSION_NAME='no compression'
-BUFFER_SIZE=100000
+SAMPLE_WIDTH = 2
+COMPRESSION_TYPE = 'NONE'
+COMPRESSION_NAME = 'no compression'
+BUFFER_SIZE = 100000
+
 
 class frame_rate(object):
     def __init__(self, new_frame_rate):
         global FRAME_RATE
         self._saved_frame_rate = FRAME_RATE
         FRAME_RATE = new_frame_rate
+
     def __enter__(self, ):
         pass
+
     def __exit__(self, *args, **kwargs):
         global FRAME_RATE
         FRAME_RATE = self._saved_frame_rate
+
 
 @contextlib.contextmanager
 def sample_width(new_sample_width):
@@ -50,6 +54,7 @@ def sample_width(new_sample_width):
     SAMPLE_WIDTH = new_sample_width
     yield
     SAMPLE_WIDTH = saved_sample_width
+
 
 def file_is_seekable(f):
     '''
@@ -72,16 +77,19 @@ def file_is_seekable(f):
 def sample(generator, min=-1, max=1, width=SAMPLE_WIDTH):
     '''Convert audio waveform generator into packed sample generator.'''
     # select signed char, short, or in based on sample width
-    fmt = { 1: '<B', 2: '<h', 4: '<i' }[width]
-    return (struct.pack(fmt, int(sample)) for sample in \
-            normalize(hard_clip(generator, min, max),\
-                min, max, -2**(width * 8 - 1), 2**(width * 8 - 1) - 1))
+    fmt = {1: '<B', 2: '<h', 4: '<i'}[width]
+    return (struct.pack(fmt, int(sample)) for sample in
+            normalize(hard_clip(generator, min, max),
+                      min, max, -2**(width * 8 - 1), 2**(width * 8 - 1) - 1))
 #    scale = float(2**(width * 8) - 1) / (max - min)
-#    return (struct.pack('h', int((sample - min) * scale) - 2**(width * 8 - 1)) for sample in generator)
+#    return (struct.pack('h', int((sample - min) * scale) - 2**(width * 8 - 1))
+#       for sample in generator)
+
 
 def sample_all(generators, *args, **kwargs):
     '''Convert list of audio waveform generators into list of packed sample generators.'''
-    return [sample(gen, *args, **kwargs) for gen in  generators]
+    return [sample(gen, *args, **kwargs) for gen in generators]
+
 
 def interleave(channels):
     '''
@@ -96,6 +104,7 @@ def interleave(channels):
             yield b"".join([next(channel) for channel in channels])
         except StopIteration:
             break
+
 
 def buffer(stream, buffer_size=BUFFER_SIZE):
     '''
@@ -115,16 +124,19 @@ def wav_samples(channels, sample_width=SAMPLE_WIDTH, raw_samples=False):
     if hasattr(channels, "__next__"):
         # if passed one generator, we have one channel
         channels = (channels,)
-    channel_count = len(channels)
+
     if not raw_samples:
         # we have audio waveforms, so sample/pack them first
         channels = sample_all(channels, width=sample_width)
+
     return interleave(channels)
+
 
 class NonSeekableFileProxy(object):
     def __init__(self, file_instance):
         '''Proxy to protect seek and tell methods of non-seekable file objects'''
         self.f = file_instance
+
     def __getattr__(self, attr):
         def dummy(*args):
             logger.debug("Suppressed call to '{0}'".format(attr))
@@ -133,6 +145,7 @@ class NonSeekableFileProxy(object):
             return dummy
         else:
             return getattr(self.f, attr)
+
 
 def wave_module_patched():
     '''True if wave module can write data size of 0xFFFFFFFF, False otherwise.'''
@@ -145,10 +158,12 @@ def wave_module_patched():
         w._ensure_header_written(0)
     except struct.error:
         patched = False
-        logger.info("Error setting wave data size to 0xFFFFFFFF; wave module unpatched, setting sata size to 0x7FFFFFFF")
+        logger.info("Error setting wave data size to 0xFFFFFFFF; "
+                    "wave module unpatched, setting sata size to 0x7FFFFFFF")
         w.setnframes((0x7FFFFFFF - 36) / w.getnchannels() / w.getsampwidth())
         w._ensure_header_written(0)
     return patched
+
 
 def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False, seekable=None):
     stream = wav_samples(channels, sample_width, raw_samples)
@@ -165,7 +180,7 @@ def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False, seekabl
         channel_count,
         sample_width,
         FRAME_RATE,
-        0, # setting zero frames, should update automatically as more frames written
+        0,  # setting zero frames, should update automatically as more frames written
         COMPRESSION_TYPE,
         COMPRESSION_NAME
         ))
@@ -189,15 +204,18 @@ def write_wav(f, channels, sample_width=SAMPLE_WIDTH, raw_samples=False, seekabl
             w.writeframesraw(chunk)
     w.close()
 
+
 def cache_finite_samples(f):
     '''Decorator to cache audio samples produced by the wrapped generator.'''
     cache = {}
+
     def wrap(*args):
         key = FRAME_RATE, args
         if key not in cache:
             cache[key] = [sample for sample in f(*args)]
         return (sample for sample in cache[key])
     return wrap
+
 
 def _pyaudio_callback(wavgen):
     def cb(a, frame_count, b, c):
@@ -211,15 +229,17 @@ def _pyaudio_callback(wavgen):
         return str(data), pyaudio.paContinue
     return cb
 
-'''
-Generate and discard all samples provided.
 
-For testing.
-'''
 def discard(channels):
+    '''
+    Generate and discard all samples provided.
+
+    For testing.
+    '''
     wavgen = wav_samples(channels)
     for chunk in wavgen:
         pass
+
 
 def play(channels, blocking=True, raw_samples=False):
     '''
