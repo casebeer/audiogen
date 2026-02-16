@@ -1,9 +1,7 @@
-# coding=utf8
 
-import logging
-
-import itertools
 import argparse
+import itertools
+import logging
 
 import audiogen
 
@@ -29,19 +27,19 @@ def digitFrequencies(digit: str) -> tuple[int, int]:
 
 def main():
     parser = argparse.ArgumentParser(
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         )
     parser.add_argument(
         "-o", "--output-file",
         default=None,
         help="Output file to write. If not set, tone audio plays with no "
-             "file output."
+             "file output.",
     )
     parser.add_argument(
         "-s", "--seconds",
         type=float,
         default=2.0,
-        help="Length of audio to play in seconds. Partial seconds allowed."
+        help="Length of audio to play in seconds. Partial seconds allowed.",
     )
     parser.add_argument(
         "-d", "--digits",
@@ -51,13 +49,19 @@ def main():
         choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
                  "*", "#", "A", "B", "C", "D"],
         help="DTMF digits to playback. Should be one of [1234567890*#ABCD]. "
-             "May be provided multiple times."
+             "May be provided multiple times.",
     )
     parser.add_argument(
         "--dial",
         action='store_true',
         default=False,
-        help="Play a North American dial tone combining 350 Hz and 440 Hz."
+        help="Play a North American dial tone combining 350 Hz and 440 Hz.",
+    )
+    parser.add_argument(
+        "-r", "--sample-rate",
+        type=int,
+        default=48000,
+        help="Sampling rate in Hertz.",
     )
     parser.add_argument(
         "frequencies", nargs='*', type=int,
@@ -66,7 +70,7 @@ def main():
              "the digit tones are mixed with the specified frequencies. "
              "If neither --digit nor posititional arguments are provided, "
              "defaults to a standard North American dial tone combining "
-             "350 Hz and 440 Hz."
+             "350 Hz and 440 Hz.",
         )
     args = parser.parse_args()
 
@@ -82,30 +86,32 @@ def main():
     frequencies += \
         [frequency for pair in digitFrequencyPairs for frequency in pair]
 
-    tones = [audiogen.beep(frequency, args.seconds, use_bpf=False)
-             for frequency in frequencies]
+    with audiogen.sampler.frame_rate(args.sample_rate):
 
-    # Mix all tones down to one channel
-    # Since we know we will have only one channel, pull out channel [0]'s
-    # sample generator for direct use by e.g. the low pass filter
-    samples = audiogen.util.mixer(tones)[0]
+        tones = [audiogen.beep(frequency, args.seconds, use_bpf=False)
+                 for frequency in frequencies]
 
-    # append a brief silence so the LPF can work
-    samples = itertools.chain(samples, audiogen.generators.silence(LPF_RUNOUT))
+        # Mix all tones down to one channel
+        # Since we know we will have only one channel, pull out channel [0]'s
+        # sample generator for direct use by e.g. the low pass filter
+        samples = audiogen.util.mixer(tones)[0]
 
-    lpf = audiogen.filters.low_pass(max(frequencies) * 1.2)
+        # append a brief silence so the LPF can work
+        samples = itertools.chain(samples, audiogen.generators.silence(LPF_RUNOUT))
 
-    # lpf twice to get better stopband attenuation
-    samples = lpf(samples)
-    samples = lpf(samples)
+        lpf = audiogen.filters.low_pass(max(frequencies) * 1.2)
 
-    filename = args.output_file
-    if filename is None:
-        audiogen.sampler.play(samples)
-    else:
-        logger.info('Writing {}...'.format(filename))
-        with open(filename, 'wb') as f:
-            audiogen.sampler.write_wav(f, samples)
+        # lpf twice to get better stopband attenuation
+        samples = lpf(samples)
+        samples = lpf(samples)
+
+        filename = args.output_file
+        if filename is None:
+            audiogen.sampler.play(samples)
+        else:
+            logger.info(f'Writing {filename}...')
+            with open(filename, 'wb') as f:
+                audiogen.sampler.write_wav(f, samples)
 
 
 if __name__ == '__main__':
